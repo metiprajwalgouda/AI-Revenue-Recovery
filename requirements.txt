@@ -6,3 +6,5 @@ pydantic
 anthropic
 pytest
 faker
+razorpay
+pytest
