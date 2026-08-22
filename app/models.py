@@ -36,7 +36,10 @@ class CheckoutEvent(BaseModel):
     customer_id: str
     customer_email: str
     customer_phone: str
-    cart_value: float = Field(..., gt=0)
+    cart_value: float = Field(..., ge=0)  # >=0 at the schema level; guardrails.py rejects <=0 explicitly.
+                                            # Kept permissive here on purpose so malformed/edge-case
+                                            # events can still be PARSED and then handled/flagged,
+                                            # rather than crashing before the agent ever sees them.
     payment_method_attempted: PaymentMethod
     checkout_started_at: datetime
     abandoned_at: datetime
