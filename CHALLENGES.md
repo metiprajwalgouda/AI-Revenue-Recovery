@@ -12,3 +12,6 @@ into the environment -- the skip condition always saw the placeholder value
 and never ran the real integration test. Fixed by adding load_dotenv() before
 the setdefault call. Lesson: setdefault() silently masks missing configuration
 if nothing populates the environment first.
+
+
+Design bug: conflating "payment link created" with "money recovered." Initial implementation named a field recovered_amount and set it whenever a Razorpay payment link was successfully created — but link creation isn't the same as the customer actually paying. Reporting this as "₹ recovered" would have been a materially inflated, dishonest metric in the final dashboard. Fixed by splitting into amount_offered (set on successful link creation) and confirmed_recovered_amount (only ever set after checking the link's live status shows "paid" via Razorpay's fetch API — built in the next step). Added a regression test (test_confirmed_recovered_amount_never_set_by_execute_action) to guarantee execute_action can never conflate the two again. Also caught that a discount rule for price_shock_at_checkout was set to 20%, above the 15% hard guardrail cap — confirmed via test that the cap actually clamps it rather than trusting the cap "by inspection."

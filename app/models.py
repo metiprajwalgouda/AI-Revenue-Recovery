@@ -77,11 +77,21 @@ class ClassificationResult(BaseModel):
 
 
 class RecoveryOutcome(BaseModel):
-    """Final record after the agent has acted — this is what feeds the dashboard."""
+    """Final record after the agent has acted — this is what feeds the dashboard.
+
+    IMPORTANT distinction (this cost us a design bug during build, see CHALLENGES.md):
+    - `amount_offered`: the ₹ value of a payment link the agent successfully CREATED.
+      This is NOT revenue. It's an opportunity, not a result.
+    - `confirmed_recovered_amount`: only set once we've checked the payment link's
+      status via Razorpay and confirmed status == "paid". THIS is the only number
+      that belongs in an honest "₹ recovered" metric.
+    """
     event_id: str
     classification: ClassificationResult
     action_taken: RecoveryAction
     action_success: bool
-    recovered_amount: Optional[float] = None
+    amount_offered: Optional[float] = None
+    confirmed_recovered_amount: Optional[float] = None
+    payment_link_id: Optional[str] = None
     error_message: Optional[str] = None
     timestamp: datetime
