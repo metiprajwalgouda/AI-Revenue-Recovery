@@ -9,18 +9,13 @@ We mock the underlying razorpay.Client so these tests:
 """
 
 import os
-import sys
-from pathlib import Path
+import time
 import pytest
 from unittest.mock import MagicMock, patch
 from razorpay.errors import BadRequestError, ServerError
 
 os.environ.setdefault("RAZORPAY_KEY_ID", "test_key_id")
 os.environ.setdefault("RAZORPAY_KEY_SECRET", "test_key_secret")
-
-# Ensure the project-root module is discoverable when pytest is launched from
-# the tests directory or by an editor's language server.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.razorpay_client import RazorpayRecoveryClient, PaymentLinkResult
 
@@ -154,3 +149,146 @@ def test_unexpected_exception_does_not_crash(client):
         )
     assert result.success is False
     assert result.error_type == "unknown"
+
+
+# ---------- Discovered from a real pipeline run against live Razorpay test mode ----------
+
+def test_duplicate_reference_id_gets_distinct_error_type_not_generic_bad_request(client):
+    """Real bug found running the full 86-event batch: re-running the pipeline against
+    Razorpay hits reference_ids that already exist from a PREVIOUS run (Razorpay keeps
+    these forever). This must be classified distinctly from a generic bad_request,
+    since retrying a duplicate is pointless but retrying other bad requests might not be."""
+    with patch.object(
+        client.client.payment_link,
+        "create",
+        side_effect=BadRequestError(
+            "payment link with given reference_id: evt_123 already exists. "
+            "Please create a payment link with a different reference_id"
+        ),
+    ):
+        result = client.create_recovery_payment_link(
+            amount_rupees=500, customer_name="Test User", customer_email="test@example.com",
+            customer_phone="+919999999999", description="test", reference_id="evt_123",
+        )
+    assert result.success is False
+    assert result.error_type == "duplicate_reference_id"
+
+
+def test_rate_limit_retries_with_backoff_then_succeeds(client, monkeypatch):
+    """Real bug found running the full batch: firing ~86 requests back-to-back tripped
+    Razorpay's test-mode rate limit ('Too many requests'). This must be retried
+    (transient), not treated as a permanent failure."""
+    monkeypatch.setattr(time, "sleep", lambda _: None)  # don't actually wait in tests
+
+    call_count = {"n": 0}
+
+    def fake_create(payload):
+        call_count["n"] += 1
+        if call_count["n"] < 3:
+            raise BadRequestError("Too many requests")
+        return {"id": "plink_after_retry", "short_url": "https://rzp.io/i/retry"}
+
+    with patch.object(client.client.payment_link, "create", side_effect=fake_create):
+        result = client.create_recovery_payment_link(
+            amount_rupees=500, customer_name="Test User", customer_email="test@example.com",
+            customer_phone="+919999999999", description="test", reference_id="evt_rate_limited",
+        )
+    assert result.success is True
+    assert result.payment_link_id == "plink_after_retry"
+    assert call_count["n"] == 3  # failed twice, succeeded on the 3rd attempt
+
+
+def test_rate_limit_gives_up_after_max_retries(client, monkeypatch):
+    """If rate limiting persists beyond max_retries, fail cleanly with error_type
+    'rate_limited' -- distinguishable from a permanent bad_request in the dashboard."""
+    monkeypatch.setattr(time, "sleep", lambda _: None)
+
+    with patch.object(
+        client.client.payment_link, "create", side_effect=BadRequestError("Too many requests")
+    ):
+        result = client.create_recovery_payment_link(
+            amount_rupees=500, customer_name="Test User", customer_email="test@example.com",
+            customer_phone="+919999999999", description="test", reference_id="evt_always_limited",
+            max_retries=2,
+        )
+    assert result.success is False
+    assert result.error_type == "rate_limited"
+
+
+# ---------- SimulatedRazorpayClient tests ----------
+
+from app.razorpay_client import SimulatedRazorpayClient
+
+
+def test_simulated_client_deterministic_across_calls():
+    """Same reference_id must ALWAYS produce the same outcome, regardless of how many
+    times we call it or in what order -- this is what makes dashboard numbers reproducible."""
+    sim1 = SimulatedRazorpayClient()
+    sim2 = SimulatedRazorpayClient()  # fresh instance, should still agree
+
+    result1 = sim1.create_recovery_payment_link(
+        amount_rupees=1000, customer_name="A", customer_email="a@x.com",
+        customer_phone="+919999999999", description="test", reference_id="evt_fixed_123",
+    )
+    result2 = sim2.create_recovery_payment_link(
+        amount_rupees=1000, customer_name="A", customer_email="a@x.com",
+        customer_phone="+919999999999", description="test", reference_id="evt_fixed_123",
+    )
+    assert result1.success == result2.success
+    assert result1.payment_link_id == result2.payment_link_id
+
+
+def test_simulated_client_zero_amount_still_rejected():
+    """Guardrail must hold even in simulation -- simulating shouldn't bypass real invariants."""
+    sim = SimulatedRazorpayClient()
+    result = sim.create_recovery_payment_link(
+        amount_rupees=0, customer_name="A", customer_email="a@x.com",
+        customer_phone="+919999999999", description="test", reference_id="evt_zero",
+    )
+    assert result.success is False
+
+
+def test_simulated_client_fetch_status_matches_creation_outcome():
+    sim = SimulatedRazorpayClient(paid_rate=1.0, failure_rate=0.0)  # force everything to "paid"
+    result = sim.create_recovery_payment_link(
+        amount_rupees=500, customer_name="A", customer_email="a@x.com",
+        customer_phone="+919999999999", description="test", reference_id="evt_always_paid",
+    )
+    assert result.success is True
+    status = sim.fetch_payment_link_status(result.payment_link_id)
+    assert status == "paid"
+
+
+def test_simulated_client_respects_paid_rate_zero():
+    sim = SimulatedRazorpayClient(paid_rate=0.0, failure_rate=0.0)  # nothing gets marked paid
+    result = sim.create_recovery_payment_link(
+        amount_rupees=500, customer_name="A", customer_email="a@x.com",
+        customer_phone="+919999999999", description="test", reference_id="evt_never_paid",
+    )
+    assert result.success is True
+    status = sim.fetch_payment_link_status(result.payment_link_id)
+    assert status == "created"
+
+
+def test_simulated_client_status_consistent_across_fresh_instances():
+    """Regression test for a real bug found while wiring run_pipeline.py + reconcile_pipeline.py
+    as SEPARATE script invocations: status must be derivable from payment_link_id ALONE
+    (not reference_id), since a fresh process/instance has no shared memory and
+    RecoveryOutcome only persists payment_link_id, not the original reference_id."""
+    creation_time_client = SimulatedRazorpayClient(paid_rate=0.35, failure_rate=0.05)
+    result = creation_time_client.create_recovery_payment_link(
+        amount_rupees=1200, customer_name="A", customer_email="a@x.com",
+        customer_phone="+919999999999", description="test", reference_id="evt_persisted_case",
+    )
+    assert result.success is True
+    status_at_creation = creation_time_client.fetch_payment_link_status(result.payment_link_id)
+
+    # Simulate a completely separate process: fresh instance, no shared in-memory state.
+    reconciliation_time_client = SimulatedRazorpayClient(paid_rate=0.35, failure_rate=0.05)
+    status_at_reconciliation = reconciliation_time_client.fetch_payment_link_status(result.payment_link_id)
+
+    assert status_at_creation == status_at_reconciliation, (
+        "Status must be identical whether checked at creation time or later from a "
+        "fresh instance -- this is required for run_pipeline.py and reconcile_pipeline.py "
+        "to agree with each other as separate script runs."
+    )

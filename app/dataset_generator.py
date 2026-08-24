@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from faker import Faker
-from .models import AbandonmentReason, PaymentMethod
+from app.models import AbandonmentReason, PaymentMethod
 
 fake = Faker("en_IN")
 random.seed(42)  # reproducible dataset -- important for honest before/after comparisons

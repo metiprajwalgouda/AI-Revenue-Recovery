@@ -19,7 +19,7 @@ class AuditLogger:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
     def log(self, outcome: RecoveryOutcome) -> None:
-        with open(self.log_path, "a") as f:
+        with open(self.log_path, "a",encoding="utf-8") as f:
             f.write(outcome.model_dump_json() + "\n")
 
     def load_all(self) -> list[RecoveryOutcome]:
@@ -31,7 +31,7 @@ class AuditLogger:
 
         outcomes = []
         corrupted_lines = 0
-        with open(self.log_path) as f:
+        with open(self.log_path,encoding="utf-8") as f:
             for i, line in enumerate(f, start=1):
                 line = line.strip()
                 if not line:

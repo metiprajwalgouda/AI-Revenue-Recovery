@@ -66,10 +66,16 @@ def execute_action(
     classification: ClassificationResult,
     action: RecoveryAction,
     razorpay_client: RazorpayRecoveryClient,
+    reference_id: str | None = None,
 ) -> RecoveryOutcome:
     """Actually performs the recovery action. This is the only function with
-    side effects (network calls) -- everything upstream of it is pure/testable."""
+    side effects (network calls) -- everything upstream of it is pure/testable.
 
+    reference_id defaults to event.event_id but can be overridden (e.g. with a
+    per-run suffix) since Razorpay treats reference_id as globally unique forever --
+    see run_pipeline.py's module docstring for why this matters in practice."""
+
+    reference_id = reference_id or event.event_id
     now = datetime.now(timezone.utc)
 
     # No-op actions: guardrail-driven, nothing to execute against Razorpay.
@@ -112,7 +118,7 @@ def execute_action(
         customer_email=event.customer_email,
         customer_phone=event.customer_phone,
         description=f"Complete your purchase - {action.value}",
-        reference_id=event.event_id,
+        reference_id=reference_id,
     )
 
     return RecoveryOutcome(

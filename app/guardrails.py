@@ -7,7 +7,7 @@ no-op action. This ordering matters -- it's what makes the agent "bounded"
 rather than "smart but occasionally reckless."
 """
 
-from models import CheckoutEvent, RecoveryAction
+from app.models import CheckoutEvent, RecoveryAction
 
 MAX_RECOVERY_ATTEMPTS = 2
 MAX_DISCOUNT_PERCENT = 15  # hard ceiling the agent can never exceed
