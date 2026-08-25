@@ -5,3 +5,6 @@ __pycache__/
 .pytest_cache/
 data/synthetic_events.json
 data/storefront.db
+data/*.jsonl
+data/dashboard_summary*.json
+data/storefront.db
