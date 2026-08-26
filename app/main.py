@@ -17,8 +17,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 
 from app.db import init_db, get_db
-from app.db_models import Product, CheckoutSession, SessionStatus
-from app.razorpay_client import RazorpayRecoveryClient
+from app.db_models import Product, CheckoutSession, SessionStatus, RecoveryOutcomeRecord
+from app.razorpay_client import RazorpayRecoveryClient, SimulatedRazorpayClient
+from app.live_recovery import run_recovery_for_session
+import os
+import anthropic
 
 
 @asynccontextmanager
@@ -33,6 +36,27 @@ app = FastAPI(title="Checkout Recovery Storefront", lifespan=lifespan)
 def get_razorpay_client() -> RazorpayRecoveryClient:
     """FastAPI dependency -- lets tests override this with a mock, same pattern as get_db."""
     return RazorpayRecoveryClient()
+
+
+def get_recovery_razorpay_client():
+    """Separate dependency for the RECOVERY action (payment link creation on abandonment),
+    distinct from get_razorpay_client (used for the initial checkout order).
+
+    Defaults to SimulatedRazorpayClient so casually testing abandonment on the live
+    site doesn't burn through Razorpay's hard 30-payment-link test-mode cap (see
+    CHALLENGES.md). Set RECOVERY_MODE=live in .env for your real demo recording,
+    when you deliberately want a handful of genuine recovery links created."""
+    if os.getenv("RECOVERY_MODE", "simulated") == "live":
+        return RazorpayRecoveryClient()
+    return SimulatedRazorpayClient()
+
+
+def get_llm_client():
+    """FastAPI dependency for the classifier's LLM fallback. Same client used by
+    the batch pipeline -- if ANTHROPIC_API_KEY has no credit, classify() already
+    degrades gracefully to 'unknown' + flag_for_manual_review (proven in the
+    batch runs, see CHALLENGES.md), so this is safe to call even with no credits."""
+    return anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
 class ProductCreate(BaseModel):
@@ -228,13 +252,42 @@ def complete_checkout(
     return {"status": "completed", "event_id": session.event_id}
 
 
-@app.post("/api/checkout/abandon")
-def abandon_checkout(payload: CheckoutAbandonRequest, db: Session = Depends(get_db)):
+class RecoveryOutcomeOut(BaseModel):
+    predicted_reason: str
+    confidence: float
+    classification_method: str
+    reasoning: Optional[str]
+    action_taken: str
+    action_success: bool
+    amount_offered: Optional[float]
+    error_message: Optional[str]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AbandonResponse(BaseModel):
+    status: str
+    event_id: str
+    recovery: Optional[RecoveryOutcomeOut] = None
+
+
+@app.post("/api/checkout/abandon", response_model=AbandonResponse)
+def abandon_checkout(
+    payload: CheckoutAbandonRequest,
+    db: Session = Depends(get_db),
+    recovery_razorpay_client=Depends(get_recovery_razorpay_client),
+    llm_client=Depends(get_llm_client),
+):
     """Called by the frontend when the customer explicitly closes the Razorpay popup
     without paying (Checkout.js 'ondismiss' callback). This is an IMMEDIATE, reliable
     abandonment signal -- much better than waiting for a timeout to guess. A background
-    timeout sweep (Day 3) still catches cases where the browser/tab closes entirely
-    without firing this callback (network drop, force-close, etc.)."""
+    timeout sweep (Day 3 continuation) still catches cases where the browser/tab closes
+    entirely without firing this callback (network drop, force-close, etc.).
+
+    On abandonment, immediately runs the SAME classify -> decide -> execute pipeline
+    used by the batch runner (see app/live_recovery.py) -- a real customer's abandoned
+    checkout gets a real (or simulated, depending on RECOVERY_MODE) recovery action
+    taken within the same request, no separate batch job required."""
     session = db.query(CheckoutSession).filter(CheckoutSession.event_id == payload.event_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Checkout session not found")
@@ -243,10 +296,18 @@ def abandon_checkout(payload: CheckoutAbandonRequest, db: Session = Depends(get_
         # Race condition guard: payment may have succeeded milliseconds before the
         # dismiss signal arrived (e.g. success callback + ondismiss both fire).
         # Never downgrade a completed order back to abandoned.
-        return {"status": "already_completed", "event_id": session.event_id}
+        return AbandonResponse(status="already_completed", event_id=session.event_id)
 
     session.status = SessionStatus.ABANDONED
     session.abandoned_at = datetime.now(timezone.utc)
     db.commit()
 
-    return {"status": "abandoned", "event_id": session.event_id}
+    outcome_record = run_recovery_for_session(
+        session=session, db=db, razorpay_client=recovery_razorpay_client, llm_client=llm_client
+    )
+
+    return AbandonResponse(
+        status="abandoned",
+        event_id=session.event_id,
+        recovery=RecoveryOutcomeOut.model_validate(outcome_record),
+    )

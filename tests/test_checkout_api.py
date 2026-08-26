@@ -218,3 +218,109 @@ def test_abandon_after_completion_does_not_downgrade_status(client, mock_razorpa
 def test_abandon_unknown_event_id_returns_404(client, mock_razorpay):
     response = client.post("/api/checkout/abandon", json={"event_id": "chk_ghost"})
     assert response.status_code == 404
+
+    
+# ---------- Recovery pipeline wiring (abandon triggers classify -> decide -> execute) ----------
+
+from app.razorpay_client import PaymentLinkResult
+
+
+@pytest.fixture
+def mock_recovery_razorpay():
+    mock = MagicMock()
+    mock.create_recovery_payment_link.return_value = PaymentLinkResult(
+        success=True, payment_link_id="plink_recovery_1", short_url="https://rzp.io/i/recovery1"
+    )
+    return mock
+
+
+@pytest.fixture
+def client_with_recovery(mock_razorpay, mock_recovery_razorpay):
+    main.app.dependency_overrides[main.get_razorpay_client] = lambda: mock_razorpay
+    main.app.dependency_overrides[main.get_recovery_razorpay_client] = lambda: mock_recovery_razorpay
+    main.app.dependency_overrides[main.get_llm_client] = lambda: MagicMock()
+    yield TestClient(main.app)
+    main.app.dependency_overrides.pop(main.get_razorpay_client, None)
+    main.app.dependency_overrides.pop(main.get_recovery_razorpay_client, None)
+    main.app.dependency_overrides.pop(main.get_llm_client, None)
+
+
+def test_abandon_triggers_recovery_and_returns_outcome(client_with_recovery, mock_razorpay, mock_recovery_razorpay):
+    mock_razorpay.create_order.return_value = OrderResult(success=True, order_id="order_1")
+    mock_razorpay.key_id = "rzp_test_fake"
+    product_id = create_test_product(client_with_recovery)
+
+    start = client_with_recovery.post("/api/checkout/start", json={
+        "customer_email": "buyer@example.com", "customer_phone": "+919999999999",
+        "cart_items": [{"product_id": product_id, "quantity": 1}],
+    }).json()
+
+    abandon = client_with_recovery.post("/api/checkout/abandon", json={"event_id": start["event_id"]})
+    assert abandon.status_code == 200
+    body = abandon.json()
+    assert body["status"] == "abandoned"
+    assert body["recovery"] is not None
+    assert body["recovery"]["action_taken"] is not None
+    assert body["recovery"]["classification_method"] in ("rule", "llm")
+
+
+def test_abandon_called_twice_does_not_duplicate_recovery_attempt(client_with_recovery, mock_razorpay, mock_recovery_razorpay):
+    """Idempotency guard: calling /abandon twice for the same session (e.g. a retried
+    request, or 'ondismiss' firing twice) must NOT create a second Razorpay recovery
+    attempt or a duplicate RecoveryOutcomeRecord."""
+    mock_razorpay.create_order.return_value = OrderResult(success=True, order_id="order_2")
+    mock_razorpay.key_id = "rzp_test_fake"
+    product_id = create_test_product(client_with_recovery)
+
+    start = client_with_recovery.post("/api/checkout/start", json={
+        "customer_email": "buyer@example.com", "customer_phone": "+919999999999",
+        "cart_items": [{"product_id": product_id, "quantity": 1}],
+    }).json()
+
+    first = client_with_recovery.post("/api/checkout/abandon", json={"event_id": start["event_id"]})
+    second = client_with_recovery.post("/api/checkout/abandon", json={"event_id": start["event_id"]})
+
+    assert first.json()["recovery"]["action_taken"] == second.json()["recovery"]["action_taken"]
+    assert mock_recovery_razorpay.create_recovery_payment_link.call_count <= 1
+
+
+def test_abandon_uses_recovery_client_not_checkout_client(client_with_recovery, mock_razorpay, mock_recovery_razorpay):
+    """The checkout-order client (get_razorpay_client) and the recovery client
+    (get_recovery_razorpay_client) are DELIBERATELY separate dependencies -- this
+    test locks in that recovery actions never accidentally call the order-creation client."""
+    mock_razorpay.create_order.return_value = OrderResult(success=True, order_id="order_3")
+    mock_razorpay.key_id = "rzp_test_fake"
+    product_id = create_test_product(client_with_recovery)
+
+    start = client_with_recovery.post("/api/checkout/start", json={
+        "customer_email": "buyer@example.com", "customer_phone": "+919999999999",
+        "cart_items": [{"product_id": product_id, "quantity": 1}],
+    }).json()
+
+    client_with_recovery.post("/api/checkout/abandon", json={"event_id": start["event_id"]})
+
+    mock_razorpay.create_recovery_payment_link.assert_not_called()
+
+
+def test_completed_session_never_triggers_recovery(client_with_recovery, mock_razorpay, mock_recovery_razorpay):
+    """A completed order must never trigger a recovery attempt, even if /abandon
+    is called on it afterward (race condition case)."""
+    mock_razorpay.create_order.return_value = OrderResult(success=True, order_id="order_4")
+    mock_razorpay.key_id = "rzp_test_fake"
+    mock_razorpay.verify_payment_signature.return_value = True
+    product_id = create_test_product(client_with_recovery)
+
+    start = client_with_recovery.post("/api/checkout/start", json={
+        "customer_email": "buyer@example.com", "customer_phone": "+919999999999",
+        "cart_items": [{"product_id": product_id, "quantity": 1}],
+    }).json()
+
+    client_with_recovery.post("/api/checkout/complete", json={
+        "event_id": start["event_id"], "razorpay_order_id": "order_4",
+        "razorpay_payment_id": "pay_4", "razorpay_signature": "sig_4",
+    })
+
+    abandon = client_with_recovery.post("/api/checkout/abandon", json={"event_id": start["event_id"]})
+    assert abandon.json()["status"] == "already_completed"
+    assert abandon.json()["recovery"] is None
+    mock_recovery_razorpay.create_recovery_payment_link.assert_not_called()

@@ -40,7 +40,8 @@ class CheckoutEvent(BaseModel):
                                             # Kept permissive here on purpose so malformed/edge-case
                                             # events can still be PARSED and then handled/flagged,
                                             # rather than crashing before the agent ever sees them.
-    payment_method_attempted: PaymentMethod
+    payment_method_attempted: Optional[PaymentMethod] = None  # real customers may abandon
+                                                                # before selecting a method at all
     checkout_started_at: datetime
     abandoned_at: datetime
     # Signals the agent can use to infer the cause (this is realistic —
@@ -51,8 +52,11 @@ class CheckoutEvent(BaseModel):
     otp_verified: bool = False
     time_on_checkout_page_sec: Optional[int] = None
     notes: Optional[str] = None                      # messy free-text, e.g. support chat snippet
-    # Ground truth for evaluation only — agent must NOT read this field
-    true_reason: AbandonmentReason
+    # Ground truth for OFFLINE EVALUATION ONLY (synthetic dataset accuracy scoring).
+    # Optional because REAL live abandonments have no known ground truth -- the whole
+    # point of the classifier is to infer this, we can't require the answer up front.
+    # The classifier itself never reads this field either way.
+    true_reason: Optional[AbandonmentReason] = None
     opted_out_of_marketing: bool = False
     previous_recovery_attempts: int = 0
 
