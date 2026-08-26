@@ -292,3 +292,68 @@ def test_simulated_client_status_consistent_across_fresh_instances():
         "fresh instance -- this is required for run_pipeline.py and reconcile_pipeline.py "
         "to agree with each other as separate script runs."
     )
+
+
+# ---------- Order creation + signature verification (real storefront checkout flow) ----------
+
+def test_create_order_success(client):
+    fake_response = {"id": "order_abc123"}
+    with patch.object(client.client.order, "create", return_value=fake_response):
+        result = client.create_order(amount_rupees=999.0, receipt="chk_test_001")
+    assert result.success is True
+    assert result.order_id == "order_abc123"
+
+
+def test_create_order_zero_amount_rejected_without_calling_api(client):
+    with patch.object(client.client.order, "create") as mock_create:
+        result = client.create_order(amount_rupees=0, receipt="chk_zero")
+    assert result.success is False
+    mock_create.assert_not_called()
+
+
+def test_create_order_converts_to_paise(client):
+    captured = {}
+
+    def fake_create(payload):
+        captured.update(payload)
+        return {"id": "order_test"}
+
+    with patch.object(client.client.order, "create", side_effect=fake_create):
+        client.create_order(amount_rupees=1499.50, receipt="chk_paise_test")
+    assert captured["amount"] == 149950
+
+
+def test_create_order_handles_api_failure_gracefully(client):
+    with patch.object(client.client.order, "create", side_effect=ServerError("down")):
+        result = client.create_order(amount_rupees=500, receipt="chk_fail")
+    assert result.success is False
+    assert result.order_id is None
+
+
+def test_verify_payment_signature_success(client):
+    with patch.object(client.client.utility, "verify_payment_signature", return_value=None):
+        is_valid = client.verify_payment_signature("order_1", "pay_1", "sig_1")
+    assert is_valid is True
+
+
+def test_verify_payment_signature_rejects_forged_signature(client):
+    """CRITICAL security test: a forged/incorrect signature must be rejected, not
+    accidentally accepted. This is what stops someone from calling /checkout/complete
+    directly with made-up IDs to fake a payment."""
+    import razorpay as razorpay_module
+
+    with patch.object(
+        client.client.utility,
+        "verify_payment_signature",
+        side_effect=razorpay_module.errors.SignatureVerificationError("bad signature"),
+    ):
+        is_valid = client.verify_payment_signature("order_1", "pay_1", "forged_signature")
+    assert is_valid is False
+
+
+def test_verify_payment_signature_handles_unexpected_error_safely(client):
+    """Edge case: any unexpected error during verification must fail CLOSED (reject),
+    never fail open and accept an unverified payment."""
+    with patch.object(client.client.utility, "verify_payment_signature", side_effect=ConnectionError("down")):
+        is_valid = client.verify_payment_signature("order_1", "pay_1", "sig_1")
+    assert is_valid is False

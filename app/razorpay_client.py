@@ -22,6 +22,13 @@ logger = logging.getLogger("recovery_agent.razorpay")
 
 
 @dataclass
+class OrderResult:
+    success: bool
+    order_id: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+@dataclass
 class PaymentLinkResult:
     success: bool
     payment_link_id: Optional[str] = None
@@ -141,6 +148,46 @@ class RazorpayRecoveryClient:
         except Exception as e:
             logger.error(f"Could not fetch status for {payment_link_id}: {e}")
             return None
+
+    def create_order(self, amount_rupees: float, receipt: str) -> OrderResult:
+        """Creates a Razorpay Order -- required by Checkout.js (the real payment popup)
+        for the FIRST-TIME storefront checkout. This is DIFFERENT from payment links:
+        payment links are for the recovery agent to send a shareable pay-later URL;
+        orders are for an immediate in-browser checkout popup on the storefront itself."""
+        if amount_rupees <= 0:
+            return OrderResult(success=False, error_message=f"Invalid amount: {amount_rupees}")
+
+        amount_paise = int(round(amount_rupees * 100))
+        try:
+            response = self.client.order.create({
+                "amount": amount_paise,
+                "currency": "INR",
+                "receipt": receipt,
+                "payment_capture": 1,  # auto-capture on successful payment
+            })
+            return OrderResult(success=True, order_id=response.get("id"))
+        except Exception as e:
+            logger.error(f"Order creation failed for receipt {receipt}: {e}")
+            return OrderResult(success=False, error_message=str(e))
+
+    def verify_payment_signature(self, order_id: str, payment_id: str, signature: str) -> bool:
+        """Verifies that a payment success callback genuinely came from Razorpay and
+        wasn't forged client-side. CRITICAL: never trust a frontend 'payment succeeded'
+        callback without this check -- anyone could otherwise call your /complete
+        endpoint directly with fake IDs and mark an unpaid order as paid."""
+        try:
+            self.client.utility.verify_payment_signature({
+                "razorpay_order_id": order_id,
+                "razorpay_payment_id": payment_id,
+                "razorpay_signature": signature,
+            })
+            return True
+        except razorpay.errors.SignatureVerificationError:
+            logger.error(f"Signature verification FAILED for order {order_id} -- possible forged request.")
+            return False
+        except Exception as e:
+            logger.error(f"Signature verification error for order {order_id}: {e}")
+            return False
 
 
 class SimulatedRazorpayClient:
