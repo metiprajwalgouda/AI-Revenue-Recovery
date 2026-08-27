@@ -129,3 +129,27 @@ def test_health_check(client):
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+# ---------- Storefront frontend routes (Day 2) ----------
+
+def test_storefront_home_renders_successfully(client):
+    """Regression test for a real bug found during manual testing: the installed
+    starlette version uses TemplateResponse(request, name, context) -- passing the
+    old-style TemplateResponse(name, {"request": request}) silently shifted arguments,
+    causing a dict to be used where a template name string was expected
+    (TypeError: unhashable type: 'dict'). This test locks in that '/' renders cleanly."""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Products" in response.text
+
+
+def test_static_css_is_served(client):
+    response = client.get("/static/css/style.css")
+    assert response.status_code == 200
+
+
+def test_static_js_is_served(client):
+    response = client.get("/static/js/storefront.js")
+    assert response.status_code == 200

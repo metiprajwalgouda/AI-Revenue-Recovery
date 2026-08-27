@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Checkout{% endblock %}
+{% block content %}
+  <h1>Your cart</h1>
+  <div id="cart-lines"></div>
+  <div id="cart-total-row" class="cart-total" style="display:none;">
+    <span>Total</span>
+    <span id="cart-total">₹0.00</span>
+  </div>
+
+  <div id="checkout-form" style="display:none; margin-top: 24px;">
+    <h2>Contact details</h2>
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="you@example.com">
+    <label for="phone">Phone (with country code)</label>
+    <input type="tel" id="phone" placeholder="+919999999999">
+    <button id="pay-btn" onclick="startCheckout()">Pay now</button>
+  </div>
+
+  <div id="empty-cart" class="empty-state" style="display:none;">
+    Your cart is empty. <a href="/">Go shopping</a>.
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  function renderCart() {
+    const cart = getCart();
+    const linesEl = document.getElementById('cart-lines');
+    const totalRow = document.getElementById('cart-total-row');
+    const form = document.getElementById('checkout-form');
+    const emptyEl = document.getElementById('empty-cart');
+
+    if (cart.length === 0) {
+      linesEl.innerHTML = '';
+      totalRow.style.display = 'none';
+      form.style.display = 'none';
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+    totalRow.style.display = 'flex';
+    form.style.display = 'block';
+
+    let total = 0;
+    linesEl.innerHTML = cart.map(item => {
+      const lineTotal = item.price * item.quantity;
+      total += lineTotal;
+      return `
+        <div class="cart-line">
+          <span>${item.name} × ${item.quantity}</span>
+          <span>₹${lineTotal.toFixed(2)}</span>
+        </div>
+      `;
+    }).join('');
+    document.getElementById('cart-total').textContent = `₹${total.toFixed(2)}`;
+  }
+
+  async function startCheckout() {
+    const cart = getCart();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+
+    if (!email || !phone) {
+      showToast('Please enter your email and phone.');
+      return;
+    }
+
+    const payBtn = document.getElementById('pay-btn');
+    payBtn.disabled = true;
+    payBtn.textContent = 'Starting checkout…';
+
+    try {
+      const startRes = await fetch('/api/checkout/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_email: email,
+          customer_phone: phone,
+          cart_items: cart.map(item => ({ product_id: item.product_id, quantity: item.quantity })),
+        }),
+      });
+
+      if (!startRes.ok) {
+        const err = await startRes.json();
+        showToast(`Could not start checkout: ${err.detail || 'unknown error'}`);
+        payBtn.disabled = false;
+        payBtn.textContent = 'Pay now';
+        return;
+      }
+
+      const startData = await startRes.json();
+
+      const options = {
+        key: startData.razorpay_key_id,
+        amount: startData.amount_paise,
+        currency: 'INR',
+        order_id: startData.order_id,
+        name: 'recoverly',
+        description: 'Order payment',
+        prefill: { email, contact: phone },
+        handler: async function (response) {
+          await fetch('/api/checkout/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event_id: startData.event_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
+          localStorage.removeItem('cart');
+          document.getElementById('cart-lines').innerHTML =
+            '<div class="empty-state">Payment successful. Thank you!</div>';
+          document.getElementById('cart-total-row').style.display = 'none';
+          document.getElementById('checkout-form').style.display = 'none';
+          updateCartCount();
+        },
+        modal: {
+          // Fires when the customer closes the popup WITHOUT paying --
+          // this is the real, live abandonment signal that feeds the recovery agent.
+          ondismiss: async function () {
+            const abandonRes = await fetch('/api/checkout/abandon', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ event_id: startData.event_id, reason_hint: 'user_closed_popup' }),
+            });
+            const abandonData = await abandonRes.json();
+            payBtn.disabled = false;
+            payBtn.textContent = 'Pay now';
+
+            if (abandonData.recovery && abandonData.recovery.action_taken) {
+              showToast(
+                `We noticed you didn't finish. Our recovery agent's response: ${abandonData.recovery.action_taken.replaceAll('_', ' ')}.`,
+                true
+              );
+            }
+          },
+        },
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+      payBtn.textContent = 'Pay now';
+    } catch (e) {
+      showToast('Something went wrong starting checkout.');
+      payBtn.disabled = false;
+      payBtn.textContent = 'Pay now';
+    }
+  }
+
+  function showToast(message, isRecovery) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = 'toast' + (isRecovery ? ' recovery' : '');
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+  }
+
+  renderCart();
+</script>
+{% endblock %}

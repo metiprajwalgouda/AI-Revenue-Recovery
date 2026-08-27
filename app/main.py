@@ -11,7 +11,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import uuid
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
@@ -31,6 +34,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Checkout Recovery Storefront", lifespan=lifespan)
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates = Jinja2Templates(directory="app/templates")
+
+
+@app.get("/", response_class=HTMLResponse)
+def storefront_home(request: Request):
+    return templates.TemplateResponse(request, "storefront.html", {})
 
 
 def get_razorpay_client() -> RazorpayRecoveryClient:
