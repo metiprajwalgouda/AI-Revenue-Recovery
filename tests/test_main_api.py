@@ -162,3 +162,16 @@ def test_static_css_is_served(client):
 def test_static_js_is_served(client):
     response = client.get("/static/js/storefront.js")
     assert response.status_code == 200
+
+# ---------- Customer auth pages (Step 6a) ----------
+
+def test_customer_login_page_renders(client):
+    response = client.get("/account/login")
+    assert response.status_code == 200
+    assert "login-form" in response.text
+
+
+def test_customer_signup_page_renders(client):
+    response = client.get("/account/signup")
+    assert response.status_code == 200
+    assert "signup-form" in response.text

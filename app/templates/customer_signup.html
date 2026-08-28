@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Sign Up{% endblock %}
+{% block content %}
+<div class="auth-form-wrap">
+    <h1>Create an Account</h1>
+    <div id="error-banner" class="error-banner" style="display:none;"></div>
+    <form id="signup-form">
+        <label>Name
+            <input type="text" name="name" autocomplete="name">
+        </label>
+        <label>Email
+            <input type="email" name="email" required autocomplete="email">
+        </label>
+        <label>Phone
+            <input type="tel" name="phone" placeholder="+91XXXXXXXXXX" autocomplete="tel">
+        </label>
+        <label>Password
+            <input type="password" name="password" required minlength="8" autocomplete="new-password">
+        </label>
+        <button type="submit">Sign Up</button>
+    </form>
+    <p class="auth-switch">Already have an account? <a href="/account/login">Log in</a></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/customer_auth.js"></script>
+{% endblock %}

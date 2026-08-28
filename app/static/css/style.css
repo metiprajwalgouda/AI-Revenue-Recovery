@@ -1,3 +1,57 @@
+/* Auth forms (login/signup) */
+.auth-form-wrap {
+    max-width: 380px;
+    margin: 0 auto;
+}
+
+.auth-form-wrap h1 { margin-bottom: 20px; }
+
+.auth-form-wrap form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 24px;
+}
+
+.auth-form-wrap label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+    color: #333;
+}
+
+.auth-form-wrap input {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.auth-form-wrap input:focus {
+    outline: none;
+    border-color: #1a1a1a;
+}
+
+.auth-form-wrap button {
+    margin-top: 8px;
+    padding: 12px;
+    font-size: 15px;
+}
+
+.auth-switch {
+    margin-top: 16px;
+    font-size: 14px;
+    text-align: center;
+    color: #666;
+}
+
+.auth-switch a { color: #1a1a1a; font-weight: 600; }
+CSSEOF
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {

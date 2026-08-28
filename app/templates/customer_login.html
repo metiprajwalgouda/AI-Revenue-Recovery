@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Log In{% endblock %}
+{% block content %}
+<div class="auth-form-wrap">
+    <h1>Log In</h1>
+    <div id="error-banner" class="error-banner" style="display:none;"></div>
+    <form id="login-form">
+        <label>Email
+            <input type="email" name="email" required autocomplete="email">
+        </label>
+        <label>Password
+            <input type="password" name="password" required autocomplete="current-password">
+        </label>
+        <button type="submit">Log In</button>
+    </form>
+    <p class="auth-switch">New here? <a href="/account/signup">Create an account</a></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/customer_auth.js"></script>
+{% endblock %}

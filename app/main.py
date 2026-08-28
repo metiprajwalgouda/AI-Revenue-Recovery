@@ -48,6 +48,16 @@ def storefront_home(request: Request):
     return templates.TemplateResponse(request, "storefront.html", {})
 
 
+@app.get("/account/login", response_class=HTMLResponse)
+def customer_login_page(request: Request):
+    return templates.TemplateResponse(request, "customer_login.html", {})
+
+
+@app.get("/account/signup", response_class=HTMLResponse)
+def customer_signup_page(request: Request):
+    return templates.TemplateResponse(request, "customer_signup.html", {})
+
+
 def get_razorpay_client() -> RazorpayRecoveryClient:
     """FastAPI dependency -- lets tests override this with a mock, same pattern as get_db."""
     return RazorpayRecoveryClient()
