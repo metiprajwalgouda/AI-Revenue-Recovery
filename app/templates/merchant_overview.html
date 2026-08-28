@@ -1,0 +1,31 @@
+{% extends "base_merchant.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+<h1>{{ store_name }}</h1>
+<div class="section-header">
+    <h2>Recovery Analytics</h2>
+    <span class="scope-note">Platform-wide (all stores) — see note below</span>
+</div>
+<div id="analytics-cards" class="analytics-grid">
+    <p>Loading analytics...</p>
+</div>
+<div id="recent-outcomes-wrap">
+    <h3>Recent Recovery Attempts</h3>
+    <table class="merchant-product-table">
+        <thead>
+            <tr><th>Order</th><th>Predicted Reason</th><th>Method</th><th>Action Taken</th><th>Offered</th><th>Recovered</th></tr>
+        </thead>
+        <tbody id="recent-outcomes-body">
+            <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+<p class="scope-note-full">
+    Note: these numbers reflect all abandoned checkouts on the platform, not only
+    orders for products from your store — this demo storefront doesn't yet split
+    recovery credit by which merchant's products were in each cart.
+</p>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/merchant_analytics.js"></script>
+{% endblock %}

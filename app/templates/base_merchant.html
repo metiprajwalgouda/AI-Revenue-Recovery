@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Merchant{% endblock %} - ShopDemo</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="merchant-body">
+    <header class="site-header merchant-header">
+        <a href="/merchant" class="logo">ShopDemo <span class="merchant-badge">Merchant</span></a>
+        <nav>
+            <a href="/" target="_blank" rel="noopener">View Storefront</a>
+            <a href="#" id="merchant-logout-link">Log Out</a>
+        </nav>
+    </header>
+    <div class="merchant-layout">
+        <aside class="merchant-sidebar">
+            <a href="/merchant" class="sidebar-link {% if active_section == 'overview' %}active{% endif %}">Overview</a>
+            <a href="/merchant/products" class="sidebar-link {% if active_section == 'products' %}active{% endif %}">Products</a>
+            <a href="/merchant/orders" class="sidebar-link {% if active_section == 'orders' %}active{% endif %}">Orders</a>
+        </aside>
+        <main class="merchant-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    <script src="/static/js/merchant_nav.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

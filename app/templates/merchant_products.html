@@ -1,0 +1,35 @@
+{% extends "base_merchant.html" %}
+{% block title %}Products{% endblock %}
+{% block content %}
+<div class="section-header">
+    <h1>Products</h1>
+    <button id="add-product-btn">+ Add Product</button>
+</div>
+<div id="product-form-wrap" style="display:none;" class="merchant-form-card">
+    <h3 id="product-form-title">Add Product</h3>
+    <form id="product-form">
+        <input type="hidden" name="product_id" value="">
+        <label>Name <input type="text" name="name" required></label>
+        <label>Description <textarea name="description" rows="2"></textarea></label>
+        <label>Price (₹) <input type="number" name="price" step="0.01" min="0.01" required></label>
+        <label>Stock <input type="number" name="stock" min="0" required></label>
+        <label>Image URL <input type="url" name="image_url" placeholder="https://..."></label>
+        <div class="form-actions">
+            <button type="submit">Save</button>
+            <button type="button" id="cancel-product-form">Cancel</button>
+        </div>
+    </form>
+</div>
+<div id="error-banner" class="error-banner" style="display:none;"></div>
+<table class="merchant-product-table">
+    <thead>
+        <tr><th>Name</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="product-table-body">
+        <tr><td colspan="5">Loading...</td></tr>
+    </tbody>
+</table>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/merchant_dashboard.js"></script>
+{% endblock %}

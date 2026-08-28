@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 import uuid
 
 from fastapi import FastAPI, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -23,8 +23,9 @@ from app.db import init_db, get_db
 from app.db_models import Product, CheckoutSession, SessionStatus, RecoveryOutcomeRecord, MerchantUser, CustomerUser
 from app.razorpay_client import RazorpayRecoveryClient, SimulatedRazorpayClient
 from app.live_recovery import run_recovery_for_session
-from app.merchant_auth_routes import router as merchant_auth_router, get_current_merchant
+from app.merchant_auth_routes import router as merchant_auth_router, get_current_merchant, get_current_merchant_or_none
 from app.customer_auth_routes import router as customer_auth_router, get_current_customer
+from app.live_analytics import compute_live_analytics
 import os
 import anthropic
 
@@ -66,6 +67,46 @@ def merchant_login_page(request: Request):
 @app.get("/merchant/signup", response_class=HTMLResponse)
 def merchant_signup_page(request: Request):
     return templates.TemplateResponse(request, "merchant_signup.html", {})
+
+
+@app.get("/merchant", response_class=HTMLResponse)
+def merchant_overview_page(request: Request, db: Session = Depends(get_db)):
+    """Unlike API routes, an unauthenticated visitor here gets redirected to the
+    login page instead of a raw 401 JSON response -- see get_current_merchant_or_none's
+    docstring for why this needs a separate function from the API's auth dependency."""
+    merchant = get_current_merchant_or_none(request, db)
+    if merchant is None:
+        return RedirectResponse(url="/merchant/login")
+
+    return templates.TemplateResponse(
+        request, "merchant_overview.html",
+        {"store_name": merchant.store_name, "active_section": "overview"},
+    )
+
+
+@app.get("/merchant/products", response_class=HTMLResponse)
+def merchant_products_page(request: Request, db: Session = Depends(get_db)):
+    merchant = get_current_merchant_or_none(request, db)
+    if merchant is None:
+        return RedirectResponse(url="/merchant/login")
+
+    return templates.TemplateResponse(
+        request, "merchant_products.html",
+        {"store_name": merchant.store_name, "active_section": "products"},
+    )
+
+
+@app.get("/merchant/orders", response_class=HTMLResponse)
+def merchant_orders_page(request: Request, db: Session = Depends(get_db)):
+    """Placeholder for now -- full orders list with filtering is the next build step."""
+    merchant = get_current_merchant_or_none(request, db)
+    if merchant is None:
+        return RedirectResponse(url="/merchant/login")
+
+    return templates.TemplateResponse(
+        request, "merchant_orders.html",
+        {"store_name": merchant.store_name, "active_section": "orders"},
+    )
 
 
 def get_razorpay_client() -> RazorpayRecoveryClient:
@@ -160,6 +201,19 @@ def list_my_products(
         .order_by(Product.created_at.desc())
         .all()
     )
+
+
+@app.get("/api/merchant/analytics")
+def get_merchant_analytics(
+    db: Session = Depends(get_db),
+    current_merchant: MerchantUser = Depends(get_current_merchant),
+):
+    """Returns PLATFORM-WIDE recovery analytics (not filtered to this merchant's own
+    orders specifically) -- see live_analytics.py's module docstring for why: checkout
+    sessions aren't scoped to a single merchant in this marketplace-style storefront.
+    Gated behind merchant login so it's not publicly exposed, even though the numbers
+    themselves aren't merchant-specific."""
+    return compute_live_analytics(db)
 
 
 @app.get("/api/products/{product_id}", response_model=ProductOut)

@@ -196,3 +196,88 @@ def test_public_product_listing_shows_products_from_all_merchants(client):
     names = [p["name"] for p in public_listing]
     assert "Product From A" in names
     assert "Product From B" in names
+
+
+# ---------- Merchant overview + products pages (Step 6c, split into sidebar sections) ----------
+
+def test_overview_redirects_when_not_logged_in(client):
+    response = client.get("/merchant", follow_redirects=False)
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/merchant/login"
+
+
+def test_overview_renders_when_logged_in(client):
+    client.post("/api/merchant/signup", json={
+        "email": "dashboard@shop.com", "password": "dashpass123", "store_name": "My Cool Shop",
+    })
+    response = client.get("/merchant")
+    assert response.status_code == 200
+    assert "My Cool Shop" in response.text
+    assert "Recovery Analytics" in response.text
+
+
+def test_overview_redirects_again_after_logout(client):
+    client.post("/api/merchant/signup", json={
+        "email": "logout_dash@shop.com", "password": "dashpass123", "store_name": "Shop",
+    })
+    client.post("/api/merchant/logout")
+    response = client.get("/merchant", follow_redirects=False)
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/merchant/login"
+
+
+def test_products_page_redirects_when_not_logged_in(client):
+    response = client.get("/merchant/products", follow_redirects=False)
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/merchant/login"
+
+
+def test_products_page_renders_when_logged_in(client):
+    client.post("/api/merchant/signup", json={
+        "email": "products_page@shop.com", "password": "dashpass123", "store_name": "Shop",
+    })
+    response = client.get("/merchant/products")
+    assert response.status_code == 200
+    assert "add-product-btn" in response.text
+
+
+def test_sidebar_links_present_and_correctly_marked_active(client):
+    client.post("/api/merchant/signup", json={
+        "email": "sidebar@shop.com", "password": "dashpass123", "store_name": "Shop",
+    })
+    overview = client.get("/merchant")
+    assert 'href="/merchant/products"' in overview.text
+    assert 'href="/merchant/orders"' in overview.text
+
+    products = client.get("/merchant/products")
+    assert 'class="sidebar-link active"' in products.text or 'sidebar-link active' in products.text
+
+
+# ---------- Analytics endpoint (Step 6c-ii) ----------
+
+def test_analytics_requires_merchant_login(client):
+    response = client.get("/api/merchant/analytics")
+    assert response.status_code == 401
+
+
+def test_analytics_endpoint_returns_expected_shape(client):
+    client.post("/api/merchant/signup", json={
+        "email": "analytics_shape@shop.com", "password": "analyticspass123", "store_name": "Shop",
+    })
+    response = client.get("/api/merchant/analytics")
+    assert response.status_code == 200
+    body = response.json()
+    for key in ("started_count", "completed_count", "abandoned_count",
+                "total_abandoned_value", "total_amount_offered",
+                "total_confirmed_recovered", "recovery_rate_pct",
+                "action_breakdown", "classification_method_breakdown", "recent_outcomes"):
+        assert key in body
+
+
+def test_overview_page_includes_analytics_section(client):
+    client.post("/api/merchant/signup", json={
+        "email": "analytics_dash@shop.com", "password": "analyticspass123", "store_name": "Shop",
+    })
+    response = client.get("/merchant")
+    assert "Recovery Analytics" in response.text
+    assert "analytics-cards" in response.text
