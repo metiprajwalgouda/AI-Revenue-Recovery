@@ -48,8 +48,25 @@ def mock_razorpay():
 
 @pytest.fixture
 def client(mock_razorpay):
+    """Logs in as BOTH a merchant (needed for create_test_product's /api/products call)
+    AND a customer (needed for the checkout endpoints) on the SAME TestClient instance.
+    This works cleanly because merchant and customer sessions use different cookie
+    names (merchant_session vs customer_session) -- they coexist without conflict,
+    which is exactly the point of keeping the two auth systems separate."""
     main.app.dependency_overrides[main.get_razorpay_client] = lambda: mock_razorpay
-    yield TestClient(main.app)
+    c = TestClient(main.app)
+
+    merchant_signup = c.post("/api/merchant/signup", json={
+        "email": "storeowner@shop.com", "password": "merchantpass123", "store_name": "Test Store",
+    })
+    assert merchant_signup.status_code == 200, f"Merchant signup fixture failed: {merchant_signup.text}"
+
+    customer_signup = c.post("/api/customer/signup", json={
+        "email": "buyer@example.com", "password": "customerpass123", "name": "Test Buyer", "phone": "+919999999999",
+    })
+    assert customer_signup.status_code == 200, f"Customer signup fixture failed: {customer_signup.text}"
+
+    yield c
     main.app.dependency_overrides.pop(main.get_razorpay_client, None)
 
 
@@ -219,7 +236,7 @@ def test_abandon_unknown_event_id_returns_404(client, mock_razorpay):
     response = client.post("/api/checkout/abandon", json={"event_id": "chk_ghost"})
     assert response.status_code == 404
 
-    
+
 # ---------- Recovery pipeline wiring (abandon triggers classify -> decide -> execute) ----------
 
 from app.razorpay_client import PaymentLinkResult
@@ -239,7 +256,16 @@ def client_with_recovery(mock_razorpay, mock_recovery_razorpay):
     main.app.dependency_overrides[main.get_razorpay_client] = lambda: mock_razorpay
     main.app.dependency_overrides[main.get_recovery_razorpay_client] = lambda: mock_recovery_razorpay
     main.app.dependency_overrides[main.get_llm_client] = lambda: MagicMock()
-    yield TestClient(main.app)
+    c = TestClient(main.app)
+
+    c.post("/api/merchant/signup", json={
+        "email": "storeowner2@shop.com", "password": "merchantpass123", "store_name": "Test Store 2",
+    })
+    c.post("/api/customer/signup", json={
+        "email": "buyer2@example.com", "password": "customerpass123", "name": "Test Buyer 2", "phone": "+919999999999",
+    })
+
+    yield c
     main.app.dependency_overrides.pop(main.get_razorpay_client, None)
     main.app.dependency_overrides.pop(main.get_recovery_razorpay_client, None)
     main.app.dependency_overrides.pop(main.get_llm_client, None)
@@ -324,3 +350,6 @@ def test_completed_session_never_triggers_recovery(client_with_recovery, mock_ra
     assert abandon.json()["status"] == "already_completed"
     assert abandon.json()["recovery"] is None
     mock_recovery_razorpay.create_recovery_payment_link.assert_not_called()
+
+
+    

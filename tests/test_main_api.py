@@ -43,7 +43,16 @@ def isolated_test_db(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client():
-    return TestClient(main.app)
+    """Returns a TestClient that's already signed up + logged in as a merchant --
+    product-management endpoints now require merchant auth (see merchant_auth_routes.py),
+    and TestClient persists cookies across requests within the same instance, so every
+    test using this fixture is authenticated as the same merchant automatically."""
+    c = TestClient(main.app)
+    signup = c.post("/api/merchant/signup", json={
+        "email": "merchant@teststore.com", "password": "testpassword123", "store_name": "Test Store",
+    })
+    assert signup.status_code == 200, f"Merchant signup fixture failed: {signup.text}"
+    return c
 
 
 def test_create_and_get_product(client):

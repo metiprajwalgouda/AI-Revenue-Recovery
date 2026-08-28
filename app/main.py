@@ -20,9 +20,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 
 from app.db import init_db, get_db
-from app.db_models import Product, CheckoutSession, SessionStatus, RecoveryOutcomeRecord
+from app.db_models import Product, CheckoutSession, SessionStatus, RecoveryOutcomeRecord, MerchantUser, CustomerUser
 from app.razorpay_client import RazorpayRecoveryClient, SimulatedRazorpayClient
 from app.live_recovery import run_recovery_for_session
+from app.merchant_auth_routes import router as merchant_auth_router, get_current_merchant
+from app.customer_auth_routes import router as customer_auth_router, get_current_customer
 import os
 import anthropic
 
@@ -34,6 +36,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Checkout Recovery Storefront", lifespan=lifespan)
+app.include_router(merchant_auth_router)
+app.include_router(customer_auth_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
@@ -89,6 +93,7 @@ class ProductUpdate(BaseModel):
 
 class ProductOut(BaseModel):
     id: int
+    merchant_id: int
     name: str
     description: Optional[str]
     price: float
@@ -100,8 +105,12 @@ class ProductOut(BaseModel):
 
 
 @app.post("/api/products", response_model=ProductOut)
-def create_product(payload: ProductCreate, db: Session = Depends(get_db)):
-    product = Product(**payload.model_dump())
+def create_product(
+    payload: ProductCreate,
+    db: Session = Depends(get_db),
+    current_merchant: MerchantUser = Depends(get_current_merchant),
+):
+    product = Product(**payload.model_dump(), merchant_id=current_merchant.id)
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -110,14 +119,32 @@ def create_product(payload: ProductCreate, db: Session = Depends(get_db)):
 
 @app.get("/api/products", response_model=list[ProductOut])
 def list_products(include_inactive: bool = False, db: Session = Depends(get_db)):
+    """PUBLIC endpoint -- shows active products from ALL merchants, marketplace-style.
+    No auth required: customers must be able to browse without logging in."""
     query = db.query(Product)
     if not include_inactive:
         query = query.filter(Product.is_active == True)  # noqa: E712
     return query.order_by(Product.created_at.desc()).all()
 
 
+@app.get("/api/merchant/products", response_model=list[ProductOut])
+def list_my_products(
+    db: Session = Depends(get_db),
+    current_merchant: MerchantUser = Depends(get_current_merchant),
+):
+    """PROTECTED endpoint for the merchant's own dashboard -- shows only THIS
+    merchant's products, including inactive ones, unlike the public listing above."""
+    return (
+        db.query(Product)
+        .filter(Product.merchant_id == current_merchant.id)
+        .order_by(Product.created_at.desc())
+        .all()
+    )
+
+
 @app.get("/api/products/{product_id}", response_model=ProductOut)
 def get_product(product_id: int, db: Session = Depends(get_db)):
+    """PUBLIC -- a customer viewing a product page doesn't need to be logged in."""
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -125,9 +152,16 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 
 
 @app.patch("/api/products/{product_id}", response_model=ProductOut)
-def update_product(product_id: int, payload: ProductUpdate, db: Session = Depends(get_db)):
+def update_product(
+    product_id: int,
+    payload: ProductUpdate,
+    db: Session = Depends(get_db),
+    current_merchant: MerchantUser = Depends(get_current_merchant),
+):
     product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
+    if not product or product.merchant_id != current_merchant.id:
+        # Same 404 whether the product doesn't exist OR belongs to someone else --
+        # never reveal that a product ID exists under a different merchant's account.
         raise HTTPException(status_code=404, detail="Product not found")
 
     updates = payload.model_dump(exclude_unset=True)
@@ -140,10 +174,14 @@ def update_product(product_id: int, payload: ProductUpdate, db: Session = Depend
 
 
 @app.delete("/api/products/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_merchant: MerchantUser = Depends(get_current_merchant),
+):
     """Soft delete: sets is_active=False rather than removing the row."""
     product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
+    if not product or product.merchant_id != current_merchant.id:
         raise HTTPException(status_code=404, detail="Product not found")
 
     product.is_active = False
@@ -164,10 +202,11 @@ class CartItem(BaseModel):
 
 
 class CheckoutStartRequest(BaseModel):
-    customer_name: Optional[str] = None
-    customer_email: str
-    customer_phone: str
     cart_items: list[CartItem] = Field(..., min_length=1)
+    # customer_name/email/phone REMOVED from the request body on purpose: they now
+    # come from the logged-in CustomerUser account (get_current_customer), never
+    # from client-supplied fields. A customer could otherwise type any email/phone
+    # they wanted into the request, decoupling the order from who actually paid.
 
 
 class CheckoutStartResponse(BaseModel):
@@ -196,6 +235,7 @@ def start_checkout(
     payload: CheckoutStartRequest,
     db: Session = Depends(get_db),
     razorpay_client: RazorpayRecoveryClient = Depends(get_razorpay_client),
+    current_customer: CustomerUser = Depends(get_current_customer),
 ):
     # Validate products and compute the REAL server-side cart value.
     # NEVER trust a client-supplied total -- always recompute from the database.
@@ -216,9 +256,10 @@ def start_checkout(
 
     session = CheckoutSession(
         event_id=event_id,
-        customer_name=payload.customer_name,
-        customer_email=payload.customer_email,
-        customer_phone=payload.customer_phone,
+        customer_user_id=current_customer.id,
+        customer_name=current_customer.name,
+        customer_email=current_customer.email,
+        customer_phone=current_customer.phone or "",
         cart_value=cart_value,
         cart_json=str([item.model_dump() for item in payload.cart_items]),
         status=SessionStatus.STARTED,
@@ -240,9 +281,15 @@ def complete_checkout(
     payload: CheckoutCompleteRequest,
     db: Session = Depends(get_db),
     razorpay_client: RazorpayRecoveryClient = Depends(get_razorpay_client),
+    current_customer: CustomerUser = Depends(get_current_customer),
 ):
     session = db.query(CheckoutSession).filter(CheckoutSession.event_id == payload.event_id).first()
     if not session:
+        raise HTTPException(status_code=404, detail="Checkout session not found")
+
+    if session.customer_user_id != current_customer.id:
+        # Same 404 whether the session doesn't exist OR belongs to a different
+        # customer -- never confirm to a stranger that a given event_id is real.
         raise HTTPException(status_code=404, detail="Checkout session not found")
 
     # CRITICAL: verify the payment is genuine before marking anything as paid.
@@ -288,6 +335,7 @@ def abandon_checkout(
     db: Session = Depends(get_db),
     recovery_razorpay_client=Depends(get_recovery_razorpay_client),
     llm_client=Depends(get_llm_client),
+    current_customer: CustomerUser = Depends(get_current_customer),
 ):
     """Called by the frontend when the customer explicitly closes the Razorpay popup
     without paying (Checkout.js 'ondismiss' callback). This is an IMMEDIATE, reliable
@@ -301,6 +349,9 @@ def abandon_checkout(
     taken within the same request, no separate batch job required."""
     session = db.query(CheckoutSession).filter(CheckoutSession.event_id == payload.event_id).first()
     if not session:
+        raise HTTPException(status_code=404, detail="Checkout session not found")
+
+    if session.customer_user_id != current_customer.id:
         raise HTTPException(status_code=404, detail="Checkout session not found")
 
     if session.status == SessionStatus.COMPLETED:

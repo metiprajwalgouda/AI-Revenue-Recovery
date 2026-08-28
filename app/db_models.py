@@ -23,10 +23,44 @@ from sqlalchemy.orm import declarative_base, relationship
 Base = declarative_base()
 
 
+class MerchantUser(Base):
+    """A store owner. Separate table from CustomerUser on purpose -- see auth.py's
+    module docstring for why merchant and customer sessions are never interchangeable,
+    even though both are 'a user who can log in'."""
+
+    __tablename__ = "merchant_users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(200), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    store_name = Column(String(200), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    products = relationship("Product", back_populates="merchant")
+
+
+class CustomerUser(Base):
+    """A shopper with a real account (not a guest). Separate table from MerchantUser --
+    a customer session token must never be usable to access merchant-only routes,
+    and vice versa, even if someone tampers with a cookie value."""
+
+    __tablename__ = "customer_users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(200), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(200), nullable=True)
+    phone = Column(String(20), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    merchant_id = Column(Integer, ForeignKey("merchant_users.id"), nullable=False)
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     price = Column(Float, nullable=False)  # in rupees
@@ -34,6 +68,8 @@ class Product(Base):
     image_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)  # soft-delete instead of hard delete
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    merchant = relationship("MerchantUser", back_populates="products")
 
 
 class SessionStatus(str, enum.Enum):
@@ -54,6 +90,7 @@ class CheckoutSession(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     event_id = Column(String(64), unique=True, nullable=False)  # public-facing id, e.g. "chk_<uuid>"
+    customer_user_id = Column(Integer, ForeignKey("customer_users.id"), nullable=False)
 
     customer_name = Column(String(200), nullable=True)
     customer_email = Column(String(200), nullable=False)
