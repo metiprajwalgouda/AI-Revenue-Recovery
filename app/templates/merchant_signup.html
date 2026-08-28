@@ -1,0 +1,24 @@
+{% extends "base_merchant_auth.html" %}
+{% block title %}Create Merchant Account{% endblock %}
+{% block content %}
+<div class="auth-form-wrap">
+    <h1>Create Your Store</h1>
+    <div id="error-banner" class="error-banner" style="display:none;"></div>
+    <form id="merchant-signup-form">
+        <label>Store Name
+            <input type="text" name="store_name" required>
+        </label>
+        <label>Email
+            <input type="email" name="email" required autocomplete="email">
+        </label>
+        <label>Password
+            <input type="password" name="password" required minlength="8" autocomplete="new-password">
+        </label>
+        <button type="submit">Create Store</button>
+    </form>
+    <p class="auth-switch">Already have a store? <a href="/merchant/login">Log in</a></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/merchant_auth.js"></script>
+{% endblock %}

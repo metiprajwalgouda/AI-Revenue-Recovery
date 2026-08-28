@@ -1,0 +1,21 @@
+{% extends "base_merchant_auth.html" %}
+{% block title %}Merchant Log In{% endblock %}
+{% block content %}
+<div class="auth-form-wrap">
+    <h1>Merchant Log In</h1>
+    <div id="error-banner" class="error-banner" style="display:none;"></div>
+    <form id="merchant-login-form">
+        <label>Email
+            <input type="email" name="email" required autocomplete="email">
+        </label>
+        <label>Password
+            <input type="password" name="password" required autocomplete="current-password">
+        </label>
+        <button type="submit">Log In</button>
+    </form>
+    <p class="auth-switch">New store? <a href="/merchant/signup">Create a merchant account</a></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/merchant_auth.js"></script>
+{% endblock %}

@@ -175,3 +175,30 @@ def test_customer_signup_page_renders(client):
     response = client.get("/account/signup")
     assert response.status_code == 200
     assert "signup-form" in response.text
+
+
+# ---------- Merchant auth pages (Step 6b) ----------
+
+def test_merchant_login_page_renders(client):
+    response = client.get("/merchant/login")
+    assert response.status_code == 200
+    assert "merchant-login-form" in response.text
+
+
+def test_merchant_signup_page_renders(client):
+    response = client.get("/merchant/signup")
+    assert response.status_code == 200
+    assert "merchant-signup-form" in response.text
+# ---------- Nav separation between customer and merchant areas (Step 6b fix) ----------
+
+def test_merchant_login_page_does_not_show_customer_nav(client):
+    """Regression test: merchant auth pages must not show the customer storefront's
+    Shop/Cart nav -- these are genuinely separate systems, the UI must reflect that."""
+    response = client.get("/merchant/login")
+    assert "Cart (" not in response.text
+    assert ">Shop<" not in response.text
+
+
+def test_customer_home_does_not_show_merchant_dashboard_link(client):
+    response = client.get("/")
+    assert "Merchant Dashboard" not in response.text
