@@ -53,10 +53,15 @@ def _set_merchant_cookie(response: Response, merchant_id: int) -> None:
         # left off here so local http://127.0.0.1 development keeps working.
     )
 
+@router.post("/logout")
+def logout_merchant(response: Response):
+    response.delete_cookie(MERCHANT_COOKIE_NAME)
+    return {"message": "Logged out successfully"}
+
 
 def get_current_merchant(request: Request, db: Session = Depends(get_db)) -> MerchantUser:
     """FastAPI dependency: resolves the logged-in merchant from the session cookie,
-    or raises 401. Used to protect every merchant-only route."""
+    or raises 401. Used to protect every merchant-only API route."""
     token = request.cookies.get(MERCHANT_COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=401, detail="Not logged in as a merchant")
@@ -68,6 +73,28 @@ def get_current_merchant(request: Request, db: Session = Depends(get_db)) -> Mer
     merchant = db.query(MerchantUser).filter(MerchantUser.id == merchant_id).first()
     if not merchant or not merchant.is_active:
         raise HTTPException(status_code=401, detail="Merchant account not found or inactive")
+
+    return merchant
+
+
+def get_current_merchant_or_none(request: Request, db: Session) -> MerchantUser | None:
+    """Same lookup as get_current_merchant, but returns None instead of raising.
+
+    Used by HTML PAGE routes (like the dashboard), which should redirect an
+    unauthenticated visitor to the login page rather than show them a raw JSON
+    401 error -- a browser page and an API endpoint need different failure
+    behavior even though the underlying auth check is identical."""
+    token = request.cookies.get(MERCHANT_COOKIE_NAME)
+    if not token:
+        return None
+
+    merchant_id = decode_merchant_session_token(token)
+    if merchant_id is None:
+        return None
+
+    merchant = db.query(MerchantUser).filter(MerchantUser.id == merchant_id).first()
+    if not merchant or not merchant.is_active:
+        return None
 
     return merchant
 

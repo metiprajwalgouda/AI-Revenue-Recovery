@@ -76,7 +76,7 @@ class ClassificationResult(BaseModel):
     event_id: str
     predicted_reason: AbandonmentReason
     confidence: float = Field(..., ge=0, le=1)
-    method_used: Literal["rule", "llm"]
+    method_used: Literal["rule", "llm", "llm_gemini", "llm_claude", "llm_claude_fallback"] | str = "llm"
     reasoning: str  # human-readable explanation, shown in audit trail
 
 
@@ -97,5 +97,6 @@ class RecoveryOutcome(BaseModel):
     amount_offered: Optional[float] = None
     confirmed_recovered_amount: Optional[float] = None
     payment_link_id: Optional[str] = None
+    short_url: Optional[str] = None
     error_message: Optional[str] = None
     timestamp: datetime

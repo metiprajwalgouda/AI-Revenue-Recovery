@@ -1,0 +1,935 @@
+{% extends "base_merchant.html" %}
+{% block title %}Customers{% endblock %}
+{% block content %}
+<style>
+    .customers-container {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+    }
+    .customers-header-wrap {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+        width: 100%;
+    }
+    .kpi-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        min-width: 0;
+        overflow: hidden;
+    }
+    .kpi-label {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #6b7280;
+        letter-spacing: 0.5px;
+    }
+    .kpi-val {
+        font-size: clamp(1.2rem, 1.5vw, 1.55rem);
+        font-weight: 800;
+        color: #111827;
+        margin-top: 4px;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+    .controls-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+    .segment-tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .segment-btn {
+        background: #f3f4f6;
+        border: 1px solid transparent;
+        color: #4b5563;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 6px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .segment-btn:hover {
+        background: #e5e7eb;
+        color: #111827;
+    }
+    .segment-btn.active {
+        background: #111827;
+        color: #ffffff;
+    }
+    .search-input {
+        padding: 8px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 13px;
+        min-width: 240px;
+    }
+    .search-input:focus {
+        outline: none;
+        border-color: #2563eb;
+    }
+    .selection-bar {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 10px 16px;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        color: #1e40af;
+        font-weight: 600;
+    }
+    .table-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .customers-table {
+        width: 100%;
+        min-width: 780px;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 13px;
+    }
+    .customers-table th {
+        background: #f9fafb;
+        padding: 12px 16px;
+        font-weight: 600;
+        color: #4b5563;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .customers-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #f3f4f6;
+        color: #1f2937;
+        vertical-align: middle;
+    }
+    .customer-row {
+        cursor: pointer;
+        transition: background 0.12s ease;
+    }
+    .customer-row:hover {
+        background: #f8fafc;
+    }
+    .customer-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #111827;
+        color: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        margin-right: 10px;
+        vertical-align: middle;
+    }
+    .status-pill {
+        display: inline-block;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 9999px;
+    }
+    .pill-green { background: #dcfce7; color: #15803d; }
+    .pill-red { background: #fee2e2; color: #b91c1c; }
+    .pill-blue { background: #dbeafe; color: #1d4ed8; }
+    .pill-amber { background: #fef3c7; color: #b45309; }
+
+    .view-btn {
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+        color: #374151;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .view-btn:hover {
+        background: #e5e7eb;
+        color: #111827;
+    }
+    .broadcast-btn {
+        background: #e11d48;
+        color: #ffffff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    .broadcast-btn:hover {
+        background: #be123c;
+    }
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        overflow-y: auto;
+    }
+    .modal-content-lg {
+        background-color: #fff;
+        margin: 5% auto;
+        padding: 28px;
+        width: 780px;
+        max-width: 90%;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    .close-modal {
+        color: #9ca3af;
+        float: right;
+        font-size: 26px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .close-modal:hover { color: #111827; }
+    .tab-nav {
+        display: flex;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 18px;
+        gap: 16px;
+    }
+    .tab-nav-item {
+        padding: 10px 4px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #6b7280;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+    }
+    .tab-nav-item.active {
+        color: #111827;
+        border-bottom-color: #111827;
+    }
+    .card-item {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+    }
+</style>
+
+<div class="customers-container">
+    <div class="customers-header-wrap">
+        <div>
+            <h1 style="font-size: 24px; font-weight: 800; color: #111827; margin: 0;">Customers & Audience</h1>
+            <p style="font-size: 14px; color: #6b7280; margin-top: 4px;">Explore customer purchase history, cart recovery interactions, and send in-app or email broadcast campaigns.</p>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="broadcast-btn" onclick="openInAppBroadcastModal()" style="background: #e11d48;">🔔 In-App Broadcast Notifications</button>
+            <button type="button" class="broadcast-btn" onclick="openBroadcastModal()">✉️ Send Promotional Offer</button>
+        </div>
+    </div>
+
+    <!-- KPI Summary Row -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Total Customers</div>
+            <div class="kpi-val" id="kpi-total-customers">0</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Active Buyers</div>
+            <div class="kpi-val" id="kpi-active-buyers" style="color: #15803d;">0</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Customer Lifetime Value (LTV)</div>
+            <div class="kpi-val" id="kpi-total-spend" style="color: #2563eb;">₹0.00</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Marketing Subscribed</div>
+            <div class="kpi-val" id="kpi-reach-pct" style="color: #7c3aed;">0%</div>
+        </div>
+    </div>
+
+    <!-- Filter & Search Controls -->
+    <div class="controls-card">
+        <div class="segment-tabs">
+            <button class="segment-btn active" onclick="setSegment('all', this)">All Customers</button>
+            <button class="segment-btn" onclick="setSegment('buyers', this)">Active Buyers</button>
+            <button class="segment-btn" onclick="setSegment('vip', this)">VIP Spenders (≥ ₹3k)</button>
+            <button class="segment-btn" onclick="setSegment('optout', this)">Opted Out</button>
+        </div>
+        <div>
+            <input type="text" id="customer-search" class="search-input" placeholder="Search by name, email, or phone..." oninput="renderCustomersTable()">
+        </div>
+    </div>
+
+    <!-- Active Selection Bar -->
+    <div id="selection-bar" class="selection-bar" style="display: none;">
+        <div>
+            <span id="selected-count-badge">0</span> customers selected for broadcast offer
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="view-btn" onclick="selectAllFiltered(true)">Select All</button>
+            <button class="view-btn" onclick="selectAllFiltered(false)">Clear Selection</button>
+            <button class="broadcast-btn" style="padding: 4px 12px; font-size: 12px;" onclick="openBroadcastModal()">Send to Selected</button>
+        </div>
+    </div>
+
+    <!-- Customers Table Card -->
+    <div class="table-card">
+        <table class="customers-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="select-all" onclick="toggleSelectAll(this.checked)"></th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Orders</th>
+                    <th>Total Spend</th>
+                    <th>Last Order</th>
+                    <th>Marketing Status</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="customers-table-body">
+                <tr><td colspan="8" style="text-align: center; padding: 32px; color: #6b7280;">Loading customer database...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Customer Details Modal -->
+<div id="customer-detail-modal" class="modal" style="display:none;">
+    <div class="modal-content-lg">
+        <span class="close-modal" onclick="closeCustomerModal()">&times;</span>
+        
+        <div id="modal-customer-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f3f4f6;">
+            <div id="modal-avatar" class="customer-avatar" style="width: 52px; height: 52px; font-size: 20px;">👤</div>
+            <div>
+                <h2 id="modal-name" style="margin: 0 0 4px 0; font-size: 20px; font-weight: 800; color: #111827;">Customer Name</h2>
+                <div style="display: flex; gap: 12px; font-size: 13px; color: #6b7280;">
+                    <span id="modal-email">email@example.com</span>
+                    <span>•</span>
+                    <span id="modal-phone">+91 0000000000</span>
+                    <span>•</span>
+                    <span id="modal-status-badge"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Metrics in Modal -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 11px; color: #6b7280; font-weight: 600;">COMPLETED ORDERS</div>
+                <div id="modal-total-orders" style="font-size: 18px; font-weight: 800; color: #15803d; margin-top: 2px;">0</div>
+            </div>
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 11px; color: #6b7280; font-weight: 600;">LIFETIME SPEND</div>
+                <div id="modal-total-spend" style="font-size: 18px; font-weight: 800; color: #111827; margin-top: 2px;">₹0.00</div>
+            </div>
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 11px; color: #6b7280; font-weight: 600;">ABANDONED CARTS</div>
+                <div id="modal-abandoned-sessions" style="font-size: 18px; font-weight: 800; color: #d97706; margin-top: 2px;">0</div>
+            </div>
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 11px; color: #6b7280; font-weight: 600;">RECOVERY CASES</div>
+                <div id="modal-cases-count" style="font-size: 18px; font-weight: 800; color: #2563eb; margin-top: 2px;">0</div>
+            </div>
+        </div>
+
+        <!-- Tabbed Navigation inside Modal -->
+        <div class="tab-nav">
+            <div class="tab-nav-item active" onclick="switchModalTab('orders', this)">Orders & Checkouts (<span id="modal-sessions-count">0</span>)</div>
+            <div class="tab-nav-item" onclick="switchModalTab('recovery', this)">AI Recovery Cases (<span id="modal-cases-tab-count">0</span>)</div>
+            <div class="tab-nav-item" onclick="switchModalTab('invoices', this)">Invoices (<span id="modal-invoices-count">0</span>)</div>
+        </div>
+
+        <!-- Orders Section -->
+        <div id="modal-tab-orders" class="modal-tab-content">
+            <div id="modal-orders-list" style="max-height: 280px; overflow-y: auto;">
+                <div style="color: #6b7280; padding: 10px;">Loading orders...</div>
+            </div>
+        </div>
+
+        <!-- Recovery Cases Section -->
+        <div id="modal-tab-recovery" class="modal-tab-content" style="display:none;">
+            <div id="modal-recovery-list" style="max-height: 280px; overflow-y: auto;">
+                <div style="color: #6b7280; padding: 10px;">Loading recovery records...</div>
+            </div>
+        </div>
+
+        <!-- Invoices Section -->
+        <div id="modal-tab-invoices" class="modal-tab-content" style="display:none;">
+            <div id="modal-invoices-list" style="max-height: 280px; overflow-y: auto;">
+                <div style="color: #6b7280; padding: 10px;">Loading invoices...</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; color: #9ca3af;">Customer ID: <code id="modal-cust-id">#0</code></span>
+            <button class="broadcast-btn" id="modal-direct-offer-btn" style="padding: 8px 16px; font-size: 13px;">🎁 Send Custom Offer</button>
+        </div>
+    </div>
+</div>
+
+<!-- In-App Broadcast Notifications Modal -->
+<div id="inapp-broadcast-modal" class="modal" style="display:none;">
+    <div class="modal-content-lg" style="width: 540px;">
+        <span class="close-modal" onclick="closeInAppBroadcastModal()">&times;</span>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <span style="font-size: 24px;">🔔</span>
+            <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #111827;">In-App Broadcast Notifications</h2>
+        </div>
+        <p style="font-size: 13px; color: #6b7280; margin: 0 0 16px 0;">
+            Send an instant real-time notification popup banner to all customers currently browsing the storefront.
+        </p>
+
+        <form id="inapp-broadcast-form" onsubmit="handleInAppBroadcastSubmit(event)">
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Notification Title *</label>
+                <input type="text" id="inapp-broadcast-title" class="search-input" style="width: 100%; box-sizing: border-box;" placeholder="e.g. Flash Sale! ⚡ / Limited Time Drop 🔥" required>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Message Body *</label>
+                <textarea id="inapp-broadcast-message" rows="3" class="search-input" style="width: 100%; box-sizing: border-box; resize: vertical;" placeholder="e.g. Use code FLASH20 at checkout for 20% off all orders placed in the next 2 hours!" required></textarea>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Action URL (Optional)</label>
+                <input type="text" id="inapp-broadcast-url" class="search-input" style="width: 100%; box-sizing: border-box;" placeholder="e.g. /cart or /product/1">
+                <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Clicking the notification directs shoppers to this storefront page.</div>
+            </div>
+            
+            <button type="submit" class="broadcast-btn" id="inapp-broadcast-submit" style="width: 100%; justify-content: center; background: #e11d48;">🚀 Dispatch Live In-App Notification</button>
+            <div id="inapp-broadcast-status-msg" style="margin-top: 14px; font-weight: 700; font-size: 14px; text-align: center;"></div>
+        </form>
+    </div>
+</div>
+
+<!-- Promotional Email/SMS Broadcast Modal -->
+<div id="broadcast-modal" class="modal" style="display:none;">
+    <div class="modal-content-lg" style="width: 540px;">
+        <span class="close-modal" onclick="closeBroadcastModal()">&times;</span>
+        <h2 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #111827;">✉️ Send Promotional Broadcast Offer</h2>
+        <p style="font-size: 13px; color: #6b7280; margin: 0 0 16px 0;">
+            Broadcasting to <strong id="broadcast-count" style="color: #111827;">0</strong> selected customer(s). Opted-out recipients will be automatically skipped.
+        </p>
+
+        <form id="broadcast-form">
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Discount Coupon</label>
+                <select id="broadcast-coupon" class="search-input" style="width: 100%; box-sizing: border-box;" required>
+                    <option value="">-- Select Promotional Coupon --</option>
+                </select>
+                <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Choose an active coupon code to embed in the broadcast message.</div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Broadcast Message</label>
+                <textarea id="broadcast-msg" rows="4" class="search-input" style="width: 100%; box-sizing: border-box; resize: vertical;" placeholder="We appreciate you being part of our store! Use code below for an exclusive discount..."></textarea>
+                <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Merged automatically into the branded customer notification email.</div>
+            </div>
+            
+            <button type="submit" class="broadcast-btn" id="broadcast-submit" style="width: 100%; justify-content: center;">🚀 Send Broadcast Now</button>
+            <div id="broadcast-status-msg" style="margin-top: 14px; font-weight: 700; font-size: 14px; text-align: center;"></div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let allCustomers = [];
+    let currentSegment = 'all';
+    let currentSelectedCustId = null;
+
+    function getInitials(name, email) {
+        if (name && name.trim() && name !== 'Guest') {
+            const parts = name.trim().split(" ");
+            let ini = parts[0][0];
+            if (parts.length > 1) ini += parts[parts.length - 1][0];
+            return ini.toUpperCase();
+        }
+        if (email) return email[0].toUpperCase();
+        return '👤';
+    }
+
+    async function loadCustomers() {
+        try {
+            const res = await fetch("/api/merchant/customers");
+            if (res.ok) {
+                allCustomers = await res.json();
+                
+                // Calculate KPIs
+                const total = allCustomers.length;
+                const buyers = allCustomers.filter(c => (c.total_orders || 0) > 0).length;
+                const totalSpend = allCustomers.reduce((acc, c) => acc + (c.total_spend || 0), 0);
+                const subscribed = allCustomers.filter(c => !c.opted_out_of_marketing).length;
+                const reachPct = total > 0 ? Math.round((subscribed / total) * 100) : 100;
+
+                document.getElementById("kpi-total-customers").innerText = total;
+                document.getElementById("kpi-active-buyers").innerText = buyers;
+                document.getElementById("kpi-total-spend").innerText = `₹${totalSpend.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById("kpi-reach-pct").innerText = `${reachPct}% (${subscribed}/${total})`;
+
+                renderCustomersTable();
+            }
+        } catch(e) {
+            console.error("Failed to load customers", e);
+        }
+    }
+
+    function setSegment(segment, el) {
+        currentSegment = segment;
+        document.querySelectorAll(".segment-btn").forEach(b => b.classList.remove("active"));
+        if (el) el.classList.add("active");
+        renderCustomersTable();
+    }
+
+    function renderCustomersTable() {
+        const tbody = document.getElementById("customers-table-body");
+        const query = (document.getElementById("customer-search").value || "").toLowerCase().trim();
+
+        let filtered = allCustomers.filter(c => {
+            if (currentSegment === 'buyers' && (!c.total_orders || c.total_orders === 0)) return false;
+            if (currentSegment === 'vip' && (c.total_spend || 0) < 3000) return false;
+            if (currentSegment === 'optout' && !c.opted_out_of_marketing) return false;
+
+            if (query) {
+                const matchName = (c.name || "").toLowerCase().includes(query);
+                const matchEmail = (c.email || "").toLowerCase().includes(query);
+                const matchPhone = (c.phone || "").toLowerCase().includes(query);
+                if (!matchName && !matchEmail && !matchPhone) return false;
+            }
+            return true;
+        });
+
+        tbody.innerHTML = "";
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 32px; color: #6b7280;">No customers found matching the criteria.</td></tr>`;
+            return;
+        }
+
+        filtered.forEach(c => {
+            const tr = document.createElement("tr");
+            tr.className = "customer-row";
+            const dateStr = c.last_order_date ? new Date(c.last_order_date).toLocaleDateString() : "Never";
+            const optOutPill = c.opted_out_of_marketing 
+                ? `<span class="status-pill pill-red">Opted Out</span>` 
+                : `<span class="status-pill pill-green">Subscribed</span>`;
+            
+            const initials = getInitials(c.name, c.email);
+
+            tr.innerHTML = `
+                <td onclick="event.stopPropagation();">
+                    <input type="checkbox" class="customer-checkbox" value="${c.id}" data-optout="${c.opted_out_of_marketing}" onchange="updateSelectionBar()">
+                </td>
+                <td onclick="openCustomerModal(${c.id})">
+                    <div style="display: flex; align-items: center;">
+                        <span class="customer-avatar">${initials}</span>
+                        <div>
+                            <strong style="color: #111827; font-size: 14px;">${c.name || 'Guest'}</strong>
+                            <div style="font-size: 12px; color: #6b7280;">${c.email}</div>
+                        </div>
+                    </div>
+                </td>
+                <td onclick="openCustomerModal(${c.id})">${c.phone || '<span style="color:#9ca3af">N/A</span>'}</td>
+                <td onclick="openCustomerModal(${c.id})"><span class="status-pill pill-blue">${c.total_orders || 0}</span></td>
+                <td onclick="openCustomerModal(${c.id})"><strong>₹${(c.total_spend || 0).toFixed(2)}</strong></td>
+                <td onclick="openCustomerModal(${c.id})" style="color: #6b7280;">${dateStr}</td>
+                <td onclick="openCustomerModal(${c.id})">${optOutPill}</td>
+                <td style="text-align: right;">
+                    <button class="view-btn" onclick="openCustomerModal(${c.id})">View Details ➔</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        updateSelectionBar();
+    }
+
+    function toggleSelectAll(checked) {
+        document.querySelectorAll(".customer-checkbox").forEach(cb => cb.checked = checked);
+        updateSelectionBar();
+    }
+
+    function selectAllFiltered(select) {
+        document.querySelectorAll(".customer-checkbox").forEach(cb => cb.checked = select);
+        document.getElementById("select-all").checked = select;
+        updateSelectionBar();
+    }
+
+    function updateSelectionBar() {
+        const selected = document.querySelectorAll(".customer-checkbox:checked");
+        const bar = document.getElementById("selection-bar");
+        const countBadge = document.getElementById("selected-count-badge");
+        
+        if (selected.length > 0) {
+            bar.style.display = "flex";
+            countBadge.innerText = selected.length;
+        } else {
+            bar.style.display = "none";
+        }
+    }
+
+    async function openCustomerModal(customerId) {
+        currentSelectedCustId = customerId;
+        const modal = document.getElementById("customer-detail-modal");
+        modal.style.display = "block";
+
+        document.getElementById("modal-name").innerText = "Loading customer details...";
+        document.getElementById("modal-email").innerText = "";
+        document.getElementById("modal-phone").innerText = "";
+        document.getElementById("modal-orders-list").innerHTML = '<div style="color: #6b7280; padding: 12px;">Fetching checkout sessions...</div>';
+        document.getElementById("modal-recovery-list").innerHTML = '<div style="color: #6b7280; padding: 12px;">Fetching recovery cases...</div>';
+        document.getElementById("modal-invoices-list").innerHTML = '<div style="color: #6b7280; padding: 12px;">Fetching invoices...</div>';
+
+        try {
+            const res = await fetch(`/api/merchant/customers/${customerId}`);
+            if (!res.ok) {
+                document.getElementById("modal-name").innerText = "Error loading customer";
+                return;
+            }
+            const data = await res.json();
+            const cust = data.customer;
+
+            document.getElementById("modal-name").innerText = cust.name;
+            document.getElementById("modal-email").innerText = cust.email;
+            document.getElementById("modal-phone").innerText = cust.phone;
+            document.getElementById("modal-cust-id").innerText = `#${cust.id}`;
+            document.getElementById("modal-avatar").innerText = getInitials(cust.name, cust.email);
+
+            document.getElementById("modal-status-badge").innerHTML = cust.opted_out_of_marketing 
+                ? '<span class="status-pill pill-red">Opted Out of Marketing</span>' 
+                : '<span class="status-pill pill-green">Subscribed</span>';
+
+            document.getElementById("modal-total-orders").innerText = cust.total_orders;
+            document.getElementById("modal-total-spend").innerText = `₹${(cust.total_spend || 0).toFixed(2)}`;
+            document.getElementById("modal-abandoned-sessions").innerText = cust.abandoned_sessions;
+            document.getElementById("modal-cases-count").innerText = data.recovery_cases.length;
+
+            document.getElementById("modal-sessions-count").innerText = data.sessions.length;
+            document.getElementById("modal-cases-tab-count").innerText = data.recovery_cases.length;
+            document.getElementById("modal-invoices-count").innerText = data.invoices.length;
+
+            // Render Sessions
+            const ordersList = document.getElementById("modal-orders-list");
+            ordersList.innerHTML = "";
+            if (data.sessions.length === 0) {
+                ordersList.innerHTML = '<div style="padding: 16px; color: #9ca3af; text-align: center;">No checkout sessions recorded.</div>';
+            } else {
+                data.sessions.forEach(s => {
+                    const isCompleted = s.status === 'COMPLETED';
+                    const pillClass = isCompleted ? 'pill-green' : (s.status === 'ABANDONED' ? 'pill-amber' : 'pill-red');
+                    const dateStr = s.started_at ? new Date(s.started_at).toLocaleString() : 'N/A';
+                    
+                    let itemsHtml = (s.items || []).map(i => `${i.name} × ${i.quantity} (₹${(i.price || 0).toFixed(2)})`).join(', ') || 'No item details';
+
+                    ordersList.innerHTML += `
+                        <div class="card-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <div>
+                                    <strong style="color: #111827;">Ref: ${s.event_id || `Session #${s.id}`}</strong>
+                                    <span style="font-size: 12px; color: #6b7280; margin-left: 8px;">${dateStr}</span>
+                                </div>
+                                <div>
+                                    <span class="status-pill ${pillClass}">${s.status}</span>
+                                </div>
+                            </div>
+                            <div style="font-size: 12px; color: #4b5563; margin-bottom: 4px;"><strong>Items:</strong> ${itemsHtml}</div>
+                            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6b7280;">
+                                <span>Cart Value: <strong>₹${(s.cart_value || 0).toFixed(2)}</strong></span>
+                                ${s.payment_id ? `<span>Razorpay ID: <code>${s.payment_id}</code></span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Render Recovery Cases
+            const recList = document.getElementById("modal-recovery-list");
+            recList.innerHTML = "";
+            if (data.recovery_cases.length === 0) {
+                recList.innerHTML = '<div style="padding: 16px; color: #9ca3af; text-align: center;">No AI recovery cases triggered for this customer.</div>';
+            } else {
+                data.recovery_cases.forEach(rc => {
+                    const statusClass = rc.status === 'RECOVERED' ? 'pill-green' : (rc.status === 'ESCALATED' ? 'pill-red' : 'pill-blue');
+                    const dateStr = rc.created_at ? new Date(rc.created_at).toLocaleString() : 'N/A';
+
+                    let actionsHtml = (rc.action_logs || []).map(a => 
+                        `<div style="font-size: 11px; color: #6b7280; margin-top: 2px;">• Step ${a.ladder_step || 1} (${a.action_type}): ${a.reason || ''} [Outcome: ${a.outcome}]</div>`
+                    ).join('') || '<div style="font-size: 11px; color: #9ca3af;">No action logs recorded yet.</div>';
+
+                    recList.innerHTML += `
+                        <div class="card-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <div>
+                                    <strong style="color: #111827;">Case #${rc.id} — ${rc.scenario}</strong>
+                                    <span style="font-size: 12px; color: #6b7280; margin-left: 8px;">${dateStr}</span>
+                                </div>
+                                <span class="status-pill ${statusClass}">${rc.status}</span>
+                            </div>
+                            <div style="display: flex; gap: 16px; font-size: 12px; color: #4b5563; margin-bottom: 6px;">
+                                <span>Amount at Risk: <strong>₹${(rc.amount_at_risk || 0).toFixed(2)}</strong></span>
+                                <span>Recovered: <strong>₹${(rc.amount_recovered || 0).toFixed(2)}</strong></span>
+                                ${rc.coupon_code_used ? `<span>Coupon: <code style="background:#e5e7eb; padding: 2px 4px; border-radius: 3px;">${rc.coupon_code_used}</code> (-₹${rc.discount_amount})</span>` : ''}
+                            </div>
+                            <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; margin-top: 6px;">
+                                <strong style="font-size: 11px; color: #374151; display: block; margin-bottom: 2px;">Intervention Trail:</strong>
+                                ${actionsHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Render Invoices
+            const invList = document.getElementById("modal-invoices-list");
+            invList.innerHTML = "";
+            if (data.invoices.length === 0) {
+                invList.innerHTML = '<div style="padding: 16px; color: #9ca3af; text-align: center;">No invoices on file for this customer.</div>';
+            } else {
+                data.invoices.forEach(inv => {
+                    const statusClass = inv.status === 'PAID' ? 'pill-green' : (inv.status === 'OVERDUE' ? 'pill-red' : 'pill-amber');
+                    invList.innerHTML += `
+                        <div class="card-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="color: #111827;">${inv.invoice_number}</strong>
+                                    <span style="font-size: 12px; color: #6b7280; margin-left: 8px;">Due: ${inv.due_date ? new Date(inv.due_date).toLocaleDateString() : 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <strong style="margin-right: 8px;">₹${(inv.amount || 0).toFixed(2)}</strong>
+                                    <span class="status-pill ${statusClass}">${inv.status}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Attach single customer offer button handler
+            document.getElementById("modal-direct-offer-btn").onclick = () => {
+                closeCustomerModal();
+                // Select only this customer
+                document.querySelectorAll(".customer-checkbox").forEach(cb => cb.checked = (parseInt(cb.value) === cust.id));
+                updateSelectionBar();
+                openBroadcastModal();
+            };
+
+        } catch(err) {
+            console.error(err);
+            document.getElementById("modal-name").innerText = "Failed to load details.";
+        }
+    }
+
+    function switchModalTab(tab, el) {
+        document.querySelectorAll(".tab-nav-item").forEach(t => t.classList.remove("active"));
+        if (el) el.classList.add("active");
+
+        document.getElementById("modal-tab-orders").style.display = (tab === 'orders' ? 'block' : 'none');
+        document.getElementById("modal-tab-recovery").style.display = (tab === 'recovery' ? 'block' : 'none');
+        document.getElementById("modal-tab-invoices").style.display = (tab === 'invoices' ? 'block' : 'none');
+    }
+
+    function closeCustomerModal() {
+        document.getElementById("customer-detail-modal").style.display = "none";
+    }
+
+    async function openBroadcastModal() {
+        const selected = document.querySelectorAll(".customer-checkbox:checked");
+        if (selected.length === 0) {
+            // If none checked, offer to broadcast to all subscribed customers
+            const confirmAll = confirm("No specific customers were checked. Would you like to select all customers for this broadcast?");
+            if (confirmAll) {
+                selectAllFiltered(true);
+            } else {
+                return;
+            }
+        }
+
+        const count = document.querySelectorAll(".customer-checkbox:checked").length;
+        document.getElementById("broadcast-count").innerText = count;
+        document.getElementById("broadcast-status-msg").innerText = "";
+        document.getElementById("broadcast-modal").style.display = "block";
+        
+        // Load active coupons for dropdown
+        try {
+            const res = await fetch("/api/merchant/coupons");
+            if (res.ok) {
+                const coupons = await res.json();
+                const sel = document.getElementById("broadcast-coupon");
+                sel.innerHTML = '<option value="">-- Select Promotional Coupon --</option>';
+                coupons.filter(c => c.active).forEach(c => {
+                    const opt = document.createElement("option");
+                    opt.value = c.id;
+                    const d = c.discount_pct ? `${c.discount_pct}% off` : `₹${c.discount_amount} off`;
+                    opt.textContent = `${c.code} (${d})`;
+                    sel.appendChild(opt);
+                });
+            }
+        } catch(e) {}
+    }
+    
+    function closeBroadcastModal() {
+        document.getElementById("broadcast-modal").style.display = "none";
+    }
+
+    document.getElementById("broadcast-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const selected = Array.from(document.querySelectorAll(".customer-checkbox:checked")).map(cb => parseInt(cb.value));
+        const payload = {
+            customer_ids: selected,
+            coupon_id: parseInt(document.getElementById("broadcast-coupon").value) || null,
+            message: document.getElementById("broadcast-msg").value.trim() || null
+        };
+        
+        const btn = document.getElementById("broadcast-submit");
+        const msg = document.getElementById("broadcast-status-msg");
+        btn.disabled = true;
+        btn.innerText = "Broadcasting...";
+        msg.innerText = "";
+        
+        try {
+            const res = await fetch("/api/merchant/broadcast", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                const data = await res.json();
+                msg.style.color = "#15803d";
+                msg.innerText = `✅ Broadcast complete: ${data.sent} sent, ${data.skipped} skipped (opted out).`;
+                setTimeout(() => {
+                    closeBroadcastModal();
+                    selectAllFiltered(false);
+                }, 2500);
+            } else {
+                const err = await res.json();
+                msg.style.color = "#dc2626";
+                msg.innerText = "❌ " + (err.detail || "Failed to send broadcast.");
+            }
+        } catch (e) {
+            msg.style.color = "#dc2626";
+            msg.innerText = "❌ Network error sending broadcast.";
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "🚀 Send Broadcast Now";
+        }
+    });
+
+    function openInAppBroadcastModal() {
+        document.getElementById("inapp-broadcast-title").value = "";
+        document.getElementById("inapp-broadcast-message").value = "";
+        document.getElementById("inapp-broadcast-url").value = "";
+        document.getElementById("inapp-broadcast-status-msg").innerText = "";
+        document.getElementById("inapp-broadcast-modal").style.display = "block";
+    }
+
+    function closeInAppBroadcastModal() {
+        document.getElementById("inapp-broadcast-modal").style.display = "none";
+    }
+
+    async function handleInAppBroadcastSubmit(e) {
+        if (e) e.preventDefault();
+        const title = document.getElementById("inapp-broadcast-title").value.trim();
+        const message = document.getElementById("inapp-broadcast-message").value.trim();
+        const actionUrl = document.getElementById("inapp-broadcast-url").value.trim() || null;
+        const btn = document.getElementById("inapp-broadcast-submit");
+        const statusMsg = document.getElementById("inapp-broadcast-status-msg");
+
+        if (!title || !message) {
+            statusMsg.style.color = "#dc2626";
+            statusMsg.innerText = "Please provide both Notification Title and Message Body.";
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Dispatching...";
+        statusMsg.innerText = "";
+
+        try {
+            const res = await fetch("/api/merchant/in-app-broadcast", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: title,
+                    message: message,
+                    action_url: actionUrl
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                statusMsg.style.color = "#15803d";
+                statusMsg.innerText = `✅ In-app broadcast successfully delivered to ${data.sent_count} online customer(s)!`;
+                setTimeout(() => {
+                    closeInAppBroadcastModal();
+                }, 2200);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                statusMsg.style.color = "#dc2626";
+                statusMsg.innerText = "❌ " + (err.detail || "Failed to dispatch in-app notification.");
+            }
+        } catch (e) {
+            statusMsg.style.color = "#dc2626";
+            statusMsg.innerText = "❌ Network error dispatching in-app notification.";
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "🚀 Dispatch Live In-App Notification";
+        }
+    }
+
+    // Expose on window for inline handlers
+    window.openInAppBroadcastModal = openInAppBroadcastModal;
+    window.closeInAppBroadcastModal = closeInAppBroadcastModal;
+    window.handleInAppBroadcastSubmit = handleInAppBroadcastSubmit;
+    window.openBroadcastModal = openBroadcastModal;
+    window.closeBroadcastModal = closeBroadcastModal;
+
+    // Close modals on outside click
+    window.onclick = function(event) {
+        const custModal = document.getElementById("customer-detail-modal");
+        const bcModal = document.getElementById("broadcast-modal");
+        const inappModal = document.getElementById("inapp-broadcast-modal");
+        if (event.target === custModal) closeCustomerModal();
+        if (event.target === bcModal) closeBroadcastModal();
+        if (event.target === inappModal) closeInAppBroadcastModal();
+    };
+
+    document.addEventListener("DOMContentLoaded", loadCustomers);
+</script>
+{% endblock %}

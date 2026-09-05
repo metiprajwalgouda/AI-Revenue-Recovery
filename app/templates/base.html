@@ -5,20 +5,159 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Storefront{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .notif-bell { position: relative; cursor: pointer; display: inline-block; margin-right: 15px; }
+        .notif-badge { position: absolute; top: -5px; right: -10px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; display: none; }
+        .notif-dropdown { position: absolute; right: 0; top: 30px; width: 300px; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 4px; display: none; z-index: 1000; max-height: 400px; overflow-y: auto; text-align: left;}
+        .notif-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 13px; color: #333; }
+        .notif-item.unread { background-color: #f0f8ff; font-weight: 500; }
+        .notif-item:last-child { border-bottom: none; }
+        .notif-item a { color: #0066cc; text-decoration: none; }
+        .notif-header { padding: 10px; font-weight: bold; border-bottom: 1px solid #ccc; background: #f9f9f9; color: #333;}
+        
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #333; color: white; padding: 15px 20px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 250px; animation: slideIn 0.3s ease-out forwards; cursor: pointer; }
+        .toast h4 { margin: 0 0 5px 0; font-size: 14px; color: #ffeb3b; }
+        .toast p { margin: 0; font-size: 13px; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
 </head>
 <body>
     <header class="site-header">
         <a href="/" class="logo">ShopDemo</a>
-        <nav>
+        <nav style="display: flex; align-items: center;">
+            <div class="notif-bell" id="notif-bell" onclick="toggleNotifDropdown()">
+                🔔<span class="notif-badge" id="notif-badge">0</span>
+                <div class="notif-dropdown" id="notif-dropdown">
+                    <div class="notif-header">Notifications</div>
+                    <div id="notif-list">
+                        <div class="notif-item" style="text-align:center;color:#666;">Loading...</div>
+                    </div>
+                </div>
+            </div>
             <a href="/">Shop</a>
             <a href="/cart" id="cart-link">Cart (<span id="cart-count">0</span>)</a>
+            <a href="/account/orders">My Orders</a>
+            <a href="/account/profile">Profile</a>
+            <a href="#" onclick="logoutCustomer(event)">Logout</a>
             <a href="/merchant/login" class="merchant-portal-link">Sell on ShopDemo</a>
         </nav>
     </header>
+
+    <script>
+        async function logoutCustomer(e) {
+            e.preventDefault();
+            await fetch("/api/customer/logout", { method: "POST" });
+            window.location.href = "/";
+        }
+    </script>
     <main class="site-main">
         {% block content %}{% endblock %}
     </main>
+    
+    <div class="toast-container" id="toast-container"></div>
+    
     <script src="/static/js/cart.js"></script>
+    <script>
+        function toggleNotifDropdown() {
+            const dropdown = document.getElementById("notif-dropdown");
+            dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
+            if(dropdown.style.display === "block") loadNotifications();
+        }
+
+        async function loadNotifications() {
+            try {
+                const res = await fetch("/api/customer/notifications");
+                if(!res.ok) {
+                    if(res.status === 401) {
+                        document.getElementById("notif-list").innerHTML = '<div class="notif-item">Log in to view notifications</div>';
+                    }
+                    return;
+                }
+                const notifs = await res.json();
+                renderNotifList(notifs);
+            } catch(e) {}
+        }
+
+        function renderNotifList(notifs) {
+            const list = document.getElementById("notif-list");
+            list.innerHTML = "";
+            let unreadCount = 0;
+            if(notifs.length === 0) {
+                list.innerHTML = '<div class="notif-item" style="text-align:center;color:#666;">No notifications</div>';
+            } else {
+                notifs.forEach(n => {
+                    if(!n.is_read) unreadCount++;
+                    const item = document.createElement("div");
+                    item.className = "notif-item " + (n.is_read ? "" : "unread");
+                    
+                    let html = `<strong>${n.title}</strong><br>${n.message}`;
+                    if(n.action_url) {
+                        html += `<br><a href="${n.action_url}" onclick="markAsRead(event, ${n.id}, '${n.action_url}')">View Details</a>`;
+                    } else if(!n.is_read) {
+                        html += `<br><a href="#" onclick="markAsRead(event, ${n.id})">Mark as read</a>`;
+                    }
+                    item.innerHTML = html;
+                    list.appendChild(item);
+                });
+            }
+            updateBadge(unreadCount);
+        }
+
+        async function markAsRead(e, id, url) {
+            e.preventDefault();
+            e.stopPropagation();
+            await fetch(`/api/customer/notifications/${id}/read`, { method: "POST" });
+            loadNotifications();
+            if(url) window.location.href = url;
+        }
+
+        function updateBadge(count) {
+            const badge = document.getElementById("notif-badge");
+            if(count > 0) {
+                badge.innerText = count;
+                badge.style.display = "block";
+            } else {
+                badge.style.display = "none";
+            }
+        }
+
+        function showToast(notif) {
+            const container = document.getElementById("toast-container");
+            const toast = document.createElement("div");
+            toast.className = "toast";
+            toast.innerHTML = `<h4>${notif.title}</h4><p>${notif.message}</p>`;
+            toast.onclick = () => {
+                markAsRead({preventDefault:()=>{}, stopPropagation:()=>{}}, notif.id, notif.action_url);
+                toast.remove();
+            };
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(()=>toast.remove(), 300); }, 8000);
+            
+            // Increment badge dynamically
+            const badge = document.getElementById("notif-badge");
+            let c = parseInt(badge.innerText || "0");
+            updateBadge(c + 1);
+        }
+
+        async function initWs() {
+            try {
+                const res = await fetch("/api/customer/profile");
+                if(res.ok) {
+                    const profile = await res.json();
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/notifications/${profile.id}`);
+                    ws.onmessage = (event) => {
+                        const notif = JSON.parse(event.data);
+                        showToast(notif);
+                    };
+                    loadNotifications();
+                }
+            } catch(e) {}
+        }
+        
+        document.addEventListener("DOMContentLoaded", initWs);
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,204 @@
+{% extends "base_merchant.html" %}
+{% block title %}Coupon Recovery Usage{% endblock %}
+
+{% block content %}
+<div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+    <div>
+        <h1 style="margin-bottom: 4px;">Coupon Recovery Usage</h1>
+        <p style="color: #666; font-size: 14px; margin: 0;">Audit and performance reports of coupons redeemed through the automated recovery pipeline.</p>
+    </div>
+</div>
+
+<!-- Top KPI Summary Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #f59e0b; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Discounts Given</div>
+        <div id="kpi-total-discounts" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #d97706; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">₹0.00</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Across all recovered orders</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #10b981; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Recovered Value</div>
+        <div id="kpi-total-recovered" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #10b981; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">₹0.00</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Net sales with coupons</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #3b82f6; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Coupon Recoveries</div>
+        <div id="kpi-total-count" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #3b82f6; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">0</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Orders redeemed via recovery</div>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div style="background: #f9fafb; border: 1px solid #e5e5e5; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
+    <div>
+        <label style="font-size: 13px; color: #555; display: block; margin-bottom: 3px; font-weight: 600;">Scenario:</label>
+        <select id="filter-scenario" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px;">
+            <option value="all">All Scenarios</option>
+            <option value="payment_failure">Payment Failure</option>
+            <option value="checkout_abandonment">Checkout Abandonment</option>
+            <option value="overdue_receivable">Overdue Receivable</option>
+        </select>
+    </div>
+    <div>
+        <label style="font-size: 13px; color: #555; display: block; margin-bottom: 3px; font-weight: 600;">Coupon Code:</label>
+        <input type="text" id="filter-code" placeholder="e.g. VIP15" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; width: 140px;">
+    </div>
+    <div>
+        <label style="font-size: 13px; color: #555; display: block; margin-bottom: 3px; font-weight: 600;">From Date:</label>
+        <input type="date" id="filter-start" style="padding: 5px 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px;">
+    </div>
+    <div>
+        <label style="font-size: 13px; color: #555; display: block; margin-bottom: 3px; font-weight: 600;">To Date:</label>
+        <input type="date" id="filter-end" style="padding: 5px 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px;">
+    </div>
+    <div style="margin-top: 18px;">
+        <button class="secondary-btn" style="padding: 6px 12px; font-size: 13px;" onclick="resetFilters()">Reset Filters</button>
+    </div>
+</div>
+
+<!-- Recovered Cases Table -->
+<div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+    <table class="merchant-product-table" style="min-width: 760px; border: none; border-radius: 0; margin-bottom: 0;">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Scenario</th>
+                <th>Coupon Code</th>
+                <th style="text-align: right;">Discount Amount (₹)</th>
+                <th style="text-align: right;">Order Total (₹)</th>
+                <th style="text-align: right;">Session ID</th>
+            </tr>
+        </thead>
+        <tbody id="coupon-table-body">
+            <tr><td colspan="7" style="text-align: center; padding: 24px; color: #888;">Loading coupon recovery records...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    async function loadCouponUsage() {
+        const scenario = document.getElementById("filter-scenario").value;
+        const code = document.getElementById("filter-code").value.trim();
+        const start = document.getElementById("filter-start").value;
+        const end = document.getElementById("filter-end").value;
+
+        const params = new URLSearchParams();
+        if (scenario && scenario !== "all") params.append("scenario", scenario);
+        if (code) params.append("coupon_code", code);
+        if (start) params.append("start_date", new Date(start).toISOString());
+        if (end) {
+            const endDate = new Date(end);
+            endDate.setHours(23, 59, 59, 999);
+            params.append("end_date", endDate.toISOString());
+        }
+
+        try {
+            const res = await fetch(`/api/merchant/coupon-recovery-usage?${params.toString()}`);
+            if (!res.ok) throw new Error("Failed to load coupon usage");
+            const data = await res.json();
+
+            // Render KPIs
+            const s = data.summary || {};
+            document.getElementById("kpi-total-discounts").innerText = "₹" + (s.total_discount_amount || 0).toFixed(2);
+            document.getElementById("kpi-total-recovered").innerText = "₹" + (s.total_recovered_amount || 0).toFixed(2);
+            document.getElementById("kpi-total-count").innerText = s.total_coupon_recovered_cases || 0;
+
+            // Render Table
+            renderTable(data.cases || []);
+        } catch (e) {
+            document.getElementById("coupon-table-body").innerHTML = `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Error: ${e.message}</td></tr>`;
+        }
+    }
+
+    function renderTable(cases) {
+        const tbody = document.getElementById("coupon-table-body");
+        tbody.innerHTML = "";
+
+        if (cases.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#888;">No recovered cases with coupons found matching the selected criteria.</td></tr>`;
+            return;
+        }
+
+        cases.forEach(c => {
+            const tr = document.createElement("tr");
+            const dateStr = c.date ? new Date(c.date).toLocaleString() : "—";
+            const scen = (c.scenario || "checkout_abandonment").toLowerCase();
+
+            tr.innerHTML = `
+                <td style="font-size: 13px; color: #555;">${dateStr}</td>
+                <td>
+                    <div style="font-weight: 600;">${escapeHtml(c.customer_name)}</div>
+                    <div style="font-size: 12px; color: #666;">${escapeHtml(c.customer_email)}</div>
+                </td>
+                <td><span class="scenario-badge ${scen}">${formatScenario(scen)}</span></td>
+                <td>
+                    <span style="display:inline-block; font-family:monospace; background:#fef3c7; color:#92400e; font-weight:700; padding:2px 8px; border-radius:4px; border:1px solid #fde68a;">
+                        ${escapeHtml(c.coupon_code || "—")}
+                    </span>
+                </td>
+                <td style="text-align: right; font-weight: 700; color: #d97706;">₹${Number(c.discount_amount || 0).toFixed(2)}</td>
+                <td style="text-align: right; font-weight: 700; color: #10b981;">₹${Number(c.order_total || 0).toFixed(2)}</td>
+                <td style="text-align: right; font-size: 12px; color: #666;">${c.checkout_session_id || "—"}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function formatScenario(str) {
+        if (!str) return "Abandonment";
+        if (str === "payment_failure") return "Payment Failure";
+        if (str === "checkout_abandonment") return "Abandonment";
+        if (str === "overdue_receivable") return "Receivable";
+        return str.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function resetFilters() {
+        document.getElementById("filter-scenario").value = "all";
+        document.getElementById("filter-code").value = "";
+        document.getElementById("filter-start").value = "";
+        document.getElementById("filter-end").value = "";
+        loadCouponUsage();
+    }
+
+    document.getElementById("filter-scenario").addEventListener("change", loadCouponUsage);
+    document.getElementById("filter-code").addEventListener("input", () => {
+        clearTimeout(window._couponSearchTimeout);
+        window._couponSearchTimeout = setTimeout(loadCouponUsage, 300);
+    });
+    document.getElementById("filter-start").addEventListener("change", loadCouponUsage);
+    document.getElementById("filter-end").addEventListener("change", loadCouponUsage);
+
+    document.addEventListener("DOMContentLoaded", loadCouponUsage);
+</script>
+
+<style>
+.scenario-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.scenario-badge.payment_failure {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+.scenario-badge.checkout_abandonment {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+.scenario-badge.overdue_receivable {
+    background-color: #ede9fe;
+    color: #5b21b6;
+}
+</style>
+{% endblock %}

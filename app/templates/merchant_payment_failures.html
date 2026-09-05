@@ -1,0 +1,540 @@
+{% extends "base_merchant.html" %}
+{% block title %}Payment Failures{% endblock %}
+
+{% block content %}
+<div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+    <div>
+        <h1 style="margin-bottom: 4px;">Payment Failures</h1>
+        <p style="color: #666; font-size: 14px; margin: 0;">Audit trail and recovery action ladder for payment transaction declines and errors.</p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+        <label style="font-size: 13px; color: #374151; font-weight: 600;">Status:</label>
+        <select id="status-filter" onchange="renderCases()" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px;">
+            <option value="all">All Statuses</option>
+            <option value="at_risk">At Risk</option>
+            <option value="intervening">Intervening</option>
+            <option value="recovered">Recovered</option>
+            <option value="lost">Lost</option>
+            <option value="escalated">Escalated</option>
+            <option value="new">New</option>
+        </select>
+        
+        <label style="font-size: 13px; color: #374151; font-weight: 600; margin-left: 6px;">Source:</label>
+        <select id="source-filter" onchange="renderCases()" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px;">
+            <option value="all">All Sources</option>
+            <option value="bank">Bank</option>
+            <option value="gateway">Gateway</option>
+            <option value="customer">Customer</option>
+            <option value="business">Business / Risk</option>
+            <option value="unknown">Unknown</option>
+        </select>
+
+        <label style="font-size: 13px; color: #374151; font-weight: 600; margin-left: 6px;">Date Filter:</label>
+        <select id="date-preset-filter" onchange="handleDatePresetChange()" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px;">
+            <option value="all">All Dates</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="last7">Last 7 Days</option>
+            <option value="last30">Last 30 Days</option>
+            <option value="thisMonth">This Month</option>
+            <option value="custom">Custom Range...</option>
+        </select>
+
+        <div id="custom-date-inputs" style="display: none; align-items: center; gap: 6px;">
+            <input type="date" id="date-from" onchange="renderCases()" style="padding: 5px 8px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 12px;">
+            <span style="color: #6b7280; font-size: 12px;">to</span>
+            <input type="date" id="date-to" onchange="renderCases()" style="padding: 5px 8px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 12px;">
+        </div>
+
+        <button type="button" id="btn-clear-date-filter" onclick="resetDateFilter()" style="display: none; background: #f3f4f6; border: 1px solid #d1d5db; color: #4b5563; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">✕ Reset Date</button>
+    </div>
+</div>
+
+<div id="filter-active-summary" style="margin-top: -10px; margin-bottom: 18px; font-size: 0.82rem; color: #6b7280;">
+    <span id="filter-count-badge">Loading payment failure cases...</span>
+</div>
+
+<!-- Top KPI Summary Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #ef4444; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total At Risk</div>
+        <div id="kpi-at-risk" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #ef4444; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">₹0.00</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Active at-risk amount</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #10b981; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Recovered</div>
+        <div id="kpi-recovered" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #10b981; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">₹0.00</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Confirmed payments only</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #3b82f6; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Recovery Rate</div>
+        <div id="kpi-rate" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #3b82f6; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">0.0%</div>
+        <div id="kpi-recovered-sub" style="font-size: 12px; color: #999; margin-top: 4px;">0 of 0 cases</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #8b5cf6; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Escalated to Human</div>
+        <div id="kpi-escalated" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #8b5cf6; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">0</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Risk / low-confidence</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #f59e0b; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Circuit Breaker Trips</div>
+        <div id="kpi-circuit" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #f59e0b; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">0</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Max touches reached (&ge;3)</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #6b7280; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Lost</div>
+        <div id="kpi-lost" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #6b7280; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">₹0.00</div>
+        <div id="kpi-lost-sub" style="font-size: 12px; color: #999; margin-top: 4px;">0 lost cases</div>
+    </div>
+</div>
+
+<!-- Cases Table -->
+<div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 24px;">
+    <table class="merchant-product-table" style="min-width: 900px; width: 100%; border: none; border-radius: 0; margin-bottom: 0;">
+        <thead>
+            <tr>
+                <th>Customer</th>
+                <th>Amount</th>
+                <th>Classification</th>
+                <th>Ladder Step</th>
+                <th>Status</th>
+                <th>Last Action Time</th>
+                <th style="text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody id="cases-table-body">
+            <tr><td colspan="7" style="text-align: center; padding: 24px; color: #888;">Loading payment failure cases...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Audit Trail Modal -->
+<div id="audit-modal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width: 750px; width: 90%; max-height: 85vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 12px; margin-bottom: 16px;">
+            <div>
+                <h2 id="modal-title" style="margin: 0; font-size: 18px;">Payment Failure Audit Trail</h2>
+                <div id="modal-subtitle" style="font-size: 13px; color: #666; margin-top: 4px;"></div>
+            </div>
+            <span class="close-modal" style="font-size: 24px; cursor: pointer; color: #888; line-height: 1;">&times;</span>
+        </div>
+        
+        <div id="modal-body" style="overflow-y: auto; padding-right: 6px; flex: 1;">
+            <div style="text-align: center; padding: 20px; color: #888;">Loading audit trail...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allCases = [];
+    let currentOpenCaseId = null;
+
+    function formatDateForInput(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function handleDatePresetChange() {
+        const preset = document.getElementById("date-preset-filter").value;
+        const customDiv = document.getElementById("custom-date-inputs");
+        const clearBtn = document.getElementById("btn-clear-date-filter");
+        const fromInput = document.getElementById("date-from");
+        const toInput = document.getElementById("date-to");
+
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (preset === "all") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "none";
+            fromInput.value = "";
+            toInput.value = "";
+        } else if (preset === "today") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            fromInput.value = formatDateForInput(startOfToday);
+            toInput.value = formatDateForInput(now);
+        } else if (preset === "yesterday") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            const yesterday = new Date(startOfToday);
+            yesterday.setDate(yesterday.getDate() - 1);
+            fromInput.value = formatDateForInput(yesterday);
+            toInput.value = formatDateForInput(yesterday);
+        } else if (preset === "last7") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            const sevenDaysAgo = new Date(startOfToday);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+            fromInput.value = formatDateForInput(sevenDaysAgo);
+            toInput.value = formatDateForInput(now);
+        } else if (preset === "last30") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            const thirtyDaysAgo = new Date(startOfToday);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+            fromInput.value = formatDateForInput(thirtyDaysAgo);
+            toInput.value = formatDateForInput(now);
+        } else if (preset === "thisMonth") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            fromInput.value = formatDateForInput(firstOfMonth);
+            toInput.value = formatDateForInput(now);
+        } else if (preset === "custom") {
+            customDiv.style.display = "inline-flex";
+            clearBtn.style.display = "inline-flex";
+        }
+
+        renderCases();
+    }
+
+    function resetDateFilter() {
+        document.getElementById("date-preset-filter").value = "all";
+        document.getElementById("custom-date-inputs").style.display = "none";
+        document.getElementById("btn-clear-date-filter").style.display = "none";
+        document.getElementById("date-from").value = "";
+        document.getElementById("date-to").value = "";
+        renderCases();
+    }
+
+    function getCaseDate(c) {
+        const raw = c.last_action_at || c.created_at;
+        if (!raw) return null;
+        const d = new Date(raw);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    async function loadCases() {
+        try {
+            const res = await fetch("/api/merchant/payment-failures");
+            if (!res.ok) throw new Error("Failed to load payment failure data");
+            const data = await res.json();
+            
+            allCases = data.cases || [];
+            renderCases();
+        } catch (e) {
+            document.getElementById("cases-table-body").innerHTML = `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">Error: ${e.message}</td></tr>`;
+        }
+    }
+
+    function updateKPIStats(casesList) {
+        const list = Array.isArray(casesList) ? casesList : allCases;
+        
+        let totalAtRisk = 0;
+        let totalRecovered = 0;
+        let totalLost = 0;
+        let recoveredCases = 0;
+        let lostCases = 0;
+        let escalatedCount = 0;
+        let circuitCount = 0;
+        
+        list.forEach(c => {
+            const st = (c.status || "").toLowerCase();
+            const atRisk = Number(c.amount_at_risk) || 0;
+            const recAmt = Number(c.amount_recovered) || 0;
+            
+            if (st === "recovered") {
+                totalRecovered += (recAmt > 0 ? recAmt : atRisk);
+                recoveredCases += 1;
+            } else if (st === "lost") {
+                totalLost += atRisk;
+                lostCases += 1;
+            } else {
+                // active / at risk / intervening / escalated / new
+                totalAtRisk += atRisk;
+            }
+            
+            if (c.escalated_to_human) escalatedCount += 1;
+            if ((c.contact_touches || 0) >= 3) circuitCount += 1;
+        });
+
+        const totalCases = list.length;
+        const recoveryRate = totalCases > 0 ? ((recoveredCases / totalCases) * 100) : 0;
+
+        document.getElementById("kpi-at-risk").innerText = "₹" + totalAtRisk.toFixed(2);
+        document.getElementById("kpi-recovered").innerText = "₹" + totalRecovered.toFixed(2);
+        document.getElementById("kpi-rate").innerText = recoveryRate.toFixed(1) + "%";
+        document.getElementById("kpi-recovered-sub").innerText = `${recoveredCases} of ${totalCases} cases`;
+        document.getElementById("kpi-escalated").innerText = escalatedCount;
+        document.getElementById("kpi-circuit").innerText = circuitCount;
+        document.getElementById("kpi-lost").innerText = "₹" + totalLost.toFixed(2);
+        document.getElementById("kpi-lost-sub").innerText = `${lostCases} lost cases`;
+    }
+
+    function renderCases() {
+        const statusFilter = document.getElementById("status-filter").value;
+        const sourceFilter = document.getElementById("source-filter").value;
+        const fromVal = document.getElementById("date-from").value;
+        const toVal = document.getElementById("date-to").value;
+
+        let fromDate = null;
+        let toDate = null;
+        if (fromVal) {
+            fromDate = new Date(fromVal + "T00:00:00");
+        }
+        if (toVal) {
+            toDate = new Date(toVal + "T23:59:59.999");
+        }
+
+        const filtered = allCases.filter(c => {
+            // Date filtering
+            if (fromDate || toDate) {
+                const cd = getCaseDate(c);
+                if (!cd) return false;
+                if (fromDate && cd < fromDate) return false;
+                if (toDate && cd > toDate) return false;
+            }
+
+            const statusMatch = statusFilter === "all" || (c.status || "").toLowerCase() === statusFilter.toLowerCase();
+            const sourceMatch = sourceFilter === "all" || (c.error_source && c.error_source.toLowerCase() === sourceFilter.toLowerCase());
+            return statusMatch && sourceMatch;
+        });
+
+        updateKPIStats(filtered);
+
+        // Update count badge
+        const countBadge = document.getElementById("filter-count-badge");
+        if (countBadge) {
+            if (filtered.length === allCases.length) {
+                countBadge.textContent = `Showing all ${allCases.length} payment failure cases`;
+            } else {
+                let filterInfo = [];
+                if (statusFilter !== "all") filterInfo.push(`Status: ${statusFilter}`);
+                if (sourceFilter !== "all") filterInfo.push(`Source: ${sourceFilter}`);
+                if (fromVal && toVal) filterInfo.push(`Dates: ${fromVal} to ${toVal}`);
+                else if (fromVal) filterInfo.push(`From: ${fromVal}`);
+                else if (toVal) filterInfo.push(`To: ${toVal}`);
+
+                countBadge.innerHTML = `Showing <strong>${filtered.length}</strong> of ${allCases.length} cases (${filterInfo.join(" • ")})`;
+            }
+        }
+
+        const tbody = document.getElementById("cases-table-body");
+        tbody.innerHTML = "";
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#888;">No payment failure cases found matching the selected date & filter criteria.</td></tr>`;
+            return;
+        }
+
+        filtered.forEach(c => {
+            const tr = document.createElement("tr");
+
+            const dateStr = c.last_action_at ? new Date(c.last_action_at).toLocaleString() : (c.created_at ? new Date(c.created_at).toLocaleString() : "N/A");
+            const src = (c.error_source || "unknown").toLowerCase();
+            
+            let amountDisplay = `₹${(c.amount_at_risk || 0).toFixed(2)}`;
+            if (c.amount_recovered > 0) {
+                amountDisplay += `<div style="font-size:11px; color:#10b981; font-weight:600;">✓ ₹${c.amount_recovered.toFixed(2)} recovered</div>`;
+            }
+
+            tr.innerHTML = `
+                <td>
+                    <div style="font-weight: 600;">${escapeHtml(c.customer_name)}</div>
+                    <div style="font-size: 12px; color: #666;">${escapeHtml(c.customer_email)}</div>
+                </td>
+                <td style="font-weight: 600;">${amountDisplay}</td>
+                <td>
+                    <span class="source-badge ${src}">${escapeHtml(c.error_source || 'unknown')}</span>
+                    <div style="font-size: 12px; color: #555; margin-top: 4px;">${escapeHtml(formatClassification(c.classification))}</div>
+                </td>
+                <td>
+                    <span style="font-weight: 600; font-size: 13px;">Step ${c.ladder_step}</span>
+                    <div style="font-size: 11px; color: #777;">${c.contact_touches || 0} touch${(c.contact_touches || 0) === 1 ? '' : 'es'}</div>
+                </td>
+                <td>
+                    <span class="status-badge ${c.status.toLowerCase()}">${c.status}</span>
+                    ${c.escalated_to_human ? '<div style="font-size:11px; color:#991b1b; font-weight:bold; margin-top:2px;">⚠️ Escalated</div>' : ''}
+                </td>
+                <td style="font-size: 13px; color: #555;">${dateStr}</td>
+                <td style="text-align: right;">
+                    <button class="primary-btn" style="padding: 6px 12px; font-size: 12px;" onclick="openAuditTrail(${c.id})">View audit trail</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function formatClassification(str) {
+        if (!str) return "Unknown";
+        return str.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    async function openAuditTrail(caseId) {
+        currentOpenCaseId = caseId;
+        const modal = document.getElementById("audit-modal");
+        const body = document.getElementById("modal-body");
+        const title = document.getElementById("modal-title");
+        const sub = document.getElementById("modal-subtitle");
+
+        modal.style.display = "block";
+        body.innerHTML = "<div style='text-align:center; padding:30px; color:#888;'>Loading audit trail...</div>";
+
+        try {
+            const res = await fetch(`/api/merchant/payment-failures/${caseId}/audit-trail`);
+            if (!res.ok) throw new Error("Failed to load audit trail");
+            const data = await res.json();
+
+            title.innerText = `Case #${data.case_id} — Payment Failure Audit Trail`;
+            sub.innerText = `Status: ${data.status.toUpperCase()} | Amount at Risk: ₹${(data.amount_at_risk || 0).toFixed(2)}`;
+
+            if (!data.logs || data.logs.length === 0) {
+                body.innerHTML = "<div style='padding:20px; text-align:center; color:#666;'>No action logs recorded for this case.</div>";
+                return;
+            }
+
+            let html = `<div style="display: flex; flex-direction: column; gap: 14px;">`;
+            
+            data.logs.forEach((log, idx) => {
+                const ts = log.created_at ? new Date(log.created_at).toLocaleString() : "Unknown Time";
+                const isPending = log.outcome === "pending_approval";
+                
+                // Parse guardrails
+                let checksHtml = "";
+                if (log.guardrail_checks && typeof log.guardrail_checks === "object") {
+                    const entries = Object.entries(log.guardrail_checks);
+                    if (entries.length > 0) {
+                        checksHtml = `
+                            <div style="margin-top: 8px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 12px; font-size: 12px;">
+                                <strong style="color: #374151;">Guardrail Checks:</strong>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 4px;">
+                                    ${entries.map(([k, v]) => `
+                                        <span style="color: #4b5563;">
+                                            <span style="color: #10b981; font-weight: bold;">✓</span> 
+                                            <strong>${escapeHtml(k)}:</strong> ${escapeHtml(String(v))}
+                                        </span>
+                                    `).join("")}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                html += `
+                    <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-weight: 700; font-size: 13px; color: #111827;">Step ${log.ladder_step}: ${escapeHtml(formatClassification(log.action_type))}</span>
+                                <span class="status-badge ${log.outcome || 'unknown'}">${log.outcome || 'unknown'}</span>
+                            </div>
+                            <span style="font-size: 12px; color: #6b7280;">${ts}</span>
+                        </div>
+                        
+                        <div style="background: #f8fafc; border-left: 3px solid #3b82f6; padding: 8px 12px; border-radius: 4px; font-size: 13px; color: #1e293b; margin-top: 6px;">
+                            <strong>Reason:</strong> ${escapeHtml(log.reason || "N/A")}
+                        </div>
+
+                        ${checksHtml}
+
+                        ${isPending ? `
+                            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #eee; display: flex; gap: 10px; align-items: center;">
+                                <span style="font-size: 12px; font-weight: 600; color: #b45309;">⚠️ Requires Merchant Approval</span>
+                                <div style="margin-left: auto; display: flex; gap: 8px;">
+                                    <button class="primary-btn" style="padding: 6px 12px; font-size: 12px; background: #10b981;" onclick="approveAction(${log.id})">✓ Approve</button>
+                                    <button class="primary-btn" style="padding: 6px 12px; font-size: 12px; background: #ef4444;" onclick="rejectAction(${log.id})">✕ Reject</button>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            body.innerHTML = html;
+
+        } catch (err) {
+            body.innerHTML = `<div style="color:red; padding:20px; text-align:center;">Error: ${err.message}</div>`;
+        }
+    }
+
+    async function approveAction(logId) {
+        if (!confirm("Are you sure you want to approve this recovery action?")) return;
+        try {
+            const res = await fetch(`/api/merchant/recovery-actions/${logId}/approve`, { method: "POST" });
+            const data = await res.json();
+            if (res.ok) {
+                alert("Action approved successfully.");
+                if (currentOpenCaseId) openAuditTrail(currentOpenCaseId);
+                loadCases();
+            } else {
+                alert("Error: " + (data.detail || "Could not approve action"));
+            }
+        } catch (e) {
+            alert("Network error: " + e.message);
+        }
+    }
+
+    async function rejectAction(logId) {
+        if (!confirm("Are you sure you want to reject this recovery action?")) return;
+        try {
+            const res = await fetch(`/api/merchant/recovery-actions/${logId}/reject`, { method: "POST" });
+            const data = await res.json();
+            if (res.ok) {
+                alert("Action rejected.");
+                if (currentOpenCaseId) openAuditTrail(currentOpenCaseId);
+                loadCases();
+            } else {
+                alert("Error: " + (data.detail || "Could not reject action"));
+            }
+        } catch (e) {
+            alert("Network error: " + e.message);
+        }
+    }
+
+    document.getElementById("status-filter").addEventListener("change", renderCases);
+    document.getElementById("source-filter").addEventListener("change", renderCases);
+
+    document.querySelector(".close-modal").onclick = () => {
+        document.getElementById("audit-modal").style.display = "none";
+    };
+
+    window.onclick = (e) => {
+        const modal = document.getElementById("audit-modal");
+        if (e.target === modal) {
+            modal.style.display = "none";
+        }
+    };
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    document.addEventListener("DOMContentLoaded", loadCases);
+</script>
+
+<style>
+.modal { position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+.modal-content { background-color: #fff; margin: 6% auto; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+.close-modal { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+.close-modal:hover { color: #000; }
+
+.status-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.status-badge.new { background-color: #e0e7ff; color: #3730a3; }
+.status-badge.at_risk { background-color: #fff3cd; color: #856404; }
+.status-badge.intervening { background-color: #dbeafe; color: #1e40af; }
+.status-badge.recovered { background-color: #d1fae5; color: #065f46; }
+.status-badge.lost { background-color: #f3f4f6; color: #4b5563; }
+.status-badge.escalated { background-color: #fee2e2; color: #991b1b; }
+.status-badge.sent { background-color: #cce5ff; color: #004085; }
+.status-badge.suppressed { background-color: #e5e7eb; color: #374151; }
+.status-badge.failed { background-color: #fee2e2; color: #991b1b; }
+.status-badge.pending_approval { background-color: #fef3c7; color: #b45309; }
+.status-badge.approved { background-color: #d1fae5; color: #065f46; }
+.status-badge.rejected { background-color: #fee2e2; color: #991b1b; }
+
+.source-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.source-badge.bank { background-color: #fee2e2; color: #991b1b; }
+.source-badge.gateway { background-color: #fef3c7; color: #92400e; }
+.source-badge.customer { background-color: #dbeafe; color: #1e40af; }
+.source-badge.business { background-color: #f3e8ff; color: #6b21a8; }
+.source-badge.unknown { background-color: #f3f4f6; color: #374151; }
+</style>
+{% endblock %}

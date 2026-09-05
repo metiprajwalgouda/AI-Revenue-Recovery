@@ -1,0 +1,625 @@
+{% extends "base_merchant.html" %}
+{% block title %}AI Revenue Intelligence{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+    <div>
+        <h1 style="margin: 0 0 6px 0; font-size: 1.85rem; color: #111827;">AI Revenue Intelligence</h1>
+        <p style="margin: 0; color: #6b7280; font-size: 0.95rem;">
+            Unified cross-pipeline analysis of revenue protected, autonomous interventions, and verifiable governance.
+        </p>
+    </div>
+    <button onclick="loadAdvancedMetrics()" class="secondary-btn" style="padding: 8px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; cursor: pointer; border-radius: 6px;">
+        🔄 Refresh Metrics
+    </button>
+</div>
+
+<!-- 1. Top Combined Financial KPIs -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-bottom: 24px;">
+    <div class="kpi-card" style="background: #fff; border: 1px solid #fce7f3; border-left: 5px solid #db2777; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); min-width: 0; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; color: #db2777; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Revenue at Risk</h3>
+            <span style="font-size: 1.2rem;">⚠️</span>
+        </div>
+        <h2 id="kpi-abandoned" style="font-size: clamp(1.3rem, 1.7vw, 1.7rem); margin: 10px 0 6px 0; color: #111827; font-weight: 800; word-break: break-word; overflow-wrap: anywhere;">₹0.00</h2>
+        <p style="margin: 0; font-size: 0.82rem; color: #6b7280;">
+            Active: <strong id="kpi-active-risk" style="color:#be185d;">₹0.00</strong> | Lost: <strong id="kpi-lost" style="color:#4b5563;">₹0.00</strong>
+        </p>
+    </div>
+
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e0e7ff; border-left: 5px solid #4f46e5; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); min-width: 0; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; color: #4f46e5; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Total Recovered</h3>
+            <span style="font-size: 1.2rem;">💰</span>
+        </div>
+        <h2 id="kpi-agent" style="font-size: clamp(1.3rem, 1.7vw, 1.7rem); margin: 10px 0 6px 0; color: #111827; font-weight: 800; word-break: break-word; overflow-wrap: anywhere;">₹0.00</h2>
+        <p style="margin: 0; font-size: 0.82rem; color: #6b7280;">
+            Reclaimed across all 3 AI recovery streams
+        </p>
+    </div>
+
+    <div class="kpi-card" style="background: #fff; border: 1px solid #ffedd5; border-left: 5px solid #ea580c; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); min-width: 0; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; color: #ea580c; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Cost of Discounts</h3>
+            <span style="font-size: 1.2rem;">🏷️</span>
+        </div>
+        <h2 id="kpi-cost" style="font-size: clamp(1.3rem, 1.7vw, 1.7rem); margin: 10px 0 6px 0; color: #111827; font-weight: 800; word-break: break-word; overflow-wrap: anywhere;">₹0.00</h2>
+        <p style="margin: 0; font-size: 0.82rem; color: #6b7280;">
+            Incentives given to close recoveries
+        </p>
+    </div>
+
+    <div class="kpi-card" style="background: #fff; border: 1px solid #dcfce7; border-left: 5px solid #16a34a; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); min-width: 0; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; color: #16a34a; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Net Revenue Add</h3>
+            <span style="font-size: 1.2rem;">📈</span>
+        </div>
+        <h2 id="kpi-net" style="font-size: clamp(1.3rem, 1.7vw, 1.7rem); margin: 10px 0 6px 0; color: #15803d; font-weight: 800; word-break: break-word; overflow-wrap: anywhere;">₹0.00</h2>
+        <p style="margin: 0; font-size: 0.82rem; color: #6b7280;">
+            Recovered Revenue minus discount costs
+        </p>
+    </div>
+</div>
+
+<!-- 2. Cross-Pipeline Stream Breakdown -->
+<div style="background: #fff; padding: 22px; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 24px;">
+    <div style="margin-bottom: 16px;">
+        <h3 style="margin: 0 0 4px 0; font-size: 1.15rem; color: #111827;">Unified Cross-Pipeline Streams</h3>
+        <p style="margin: 0; color: #6b7280; font-size: 0.88rem;">Live status and conversion rates across all three autonomous recovery pipelines.</p>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px;">
+        <!-- Payment Failures Stream -->
+        <div style="background: #fafafa; border: 1px solid #e5e7eb; border-top: 4px solid #ef4444; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: #991b1b; display: flex; align-items: center; gap: 6px;">
+                        <span>💳</span> Payment Failures
+                    </div>
+                    <span id="pf-total-cases" class="status-badge" style="background:#fee2e2; color:#991b1b; font-weight:600; font-size:0.75rem;">0 cases</span>
+                </div>
+                <div style="font-size: 0.88rem; line-height: 1.9; color: #374151;">
+                    <div style="display:flex; justify-content:space-between;"><span>Active at Risk:</span> <strong id="pf-at-risk">₹0.00</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Recovered:</span> <strong id="pf-recovered" style="color:#16a34a;">₹0.00</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Recovery Rate:</span> <strong id="pf-recovery-rate" style="color:#2563eb;">0.0%</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Total Lost:</span> <strong id="pf-lost" style="color:#6b7280;">₹0.00</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Escalated to Human:</span> <strong id="pf-escalated">0</strong></div>
+                </div>
+            </div>
+            <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: right;">
+                <a href="/merchant/payment-failures" style="font-size: 0.82rem; color: #dc2626; text-decoration: none; font-weight: 600;">Open Payment Failures →</a>
+            </div>
+        </div>
+
+        <!-- Checkout Abandonment Stream -->
+        <div style="background: #fafafa; border: 1px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: #1e40af; display: flex; align-items: center; gap: 6px;">
+                        <span>🛒</span> Checkout Abandonment
+                    </div>
+                    <span id="ab-total-cases" class="status-badge" style="background:#e0e7ff; color:#1e40af; font-weight:600; font-size:0.75rem;">0 cases</span>
+                </div>
+                <div style="font-size: 0.88rem; line-height: 1.9; color: #374151;">
+                    <div style="display:flex; justify-content:space-between;"><span>Active at Risk:</span> <strong id="ab-at-risk">₹0.00</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Recovered:</span> <strong id="ab-recovered" style="color:#16a34a;">₹0.00</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Recovery Rate:</span> <strong id="ab-recovery-rate" style="color:#2563eb;">0.0%</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Total Lost:</span> <strong id="ab-lost" style="color:#6b7280;">₹0.00</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Escalated to Human:</span> <strong id="ab-escalated">0</strong></div>
+                </div>
+            </div>
+            <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: right;">
+                <a href="/merchant/checkout-abandonment" style="font-size: 0.82rem; color: #2563eb; text-decoration: none; font-weight: 600;">Open Checkout Abandonment →</a>
+            </div>
+        </div>
+
+        <!-- Overdue Receivables Stream -->
+        <div style="background: #fafafa; border: 1px solid #e5e7eb; border-top: 4px solid #f59e0b; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: #92400e; display: flex; align-items: center; gap: 6px;">
+                        <span>📄</span> Overdue Receivables
+                    </div>
+                    <span id="rec-total-cases" class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:600; font-size:0.75rem;">0 cases</span>
+                </div>
+                <div style="font-size: 0.88rem; line-height: 1.9; color: #374151;">
+                    <div style="display:flex; justify-content:space-between;"><span>Active at Risk:</span> <strong id="rec-at-risk">₹0.00</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Recovered:</span> <strong id="rec-recovered" style="color:#16a34a;">₹0.00</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Recovery Rate:</span> <strong id="rec-recovery-rate" style="color:#2563eb;">0.0%</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Total Lost:</span> <strong id="rec-lost" style="color:#6b7280;">₹0.00</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Avg Days to Collect:</span> <strong id="rec-dso">0.0 days</strong></div>
+                </div>
+            </div>
+            <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: right;">
+                <a href="/merchant/receivables" style="font-size: 0.82rem; color: #d97706; text-decoration: none; font-weight: 600;">Open Receivables Ledger →</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Aligned Side-by-Side: Funnel & Cohort Analysis -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; align-items: stretch;">
+    
+    <!-- Funnel Visualization Card -->
+    <div style="background: #fff; padding: 22px; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <h3 style="margin: 0; font-size: 1.15rem; color: #111827;">Recovery Intervention Funnel</h3>
+                <span class="status-badge" style="background:#f3f4f6; color:#374151; font-size:0.75rem;">Autonomous Funnel</span>
+            </div>
+            <p style="color: #6b7280; font-size: 0.88rem; margin: 0 0 20px 0;">Tracking detection, guardrail governance, execution, and outcomes.</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- Step 1: Detected -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 6px;">
+                        <span style="color: #374151; font-weight: 600;">1. Cases Detected at Risk</span>
+                        <strong id="funnel-detected" style="color: #111827;">0 cases</strong>
+                    </div>
+                    <div style="background: #f3f4f6; height: 10px; border-radius: 5px; overflow: hidden;">
+                        <div style="background: #6b7280; width: 100%; height: 100%; border-radius: 5px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Suppressed -->
+                <div style="padding-left: 12px; border-left: 2px solid #fee2e2;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 6px;">
+                        <span style="color: #991b1b;">2. Suppressed by Guardrails / Rules</span>
+                        <strong id="funnel-suppressed" style="color: #ef4444;">0</strong>
+                    </div>
+                    <div style="background: #f3f4f6; height: 10px; border-radius: 5px; overflow: hidden;">
+                        <div id="bar-suppressed" style="background: #ef4444; width: 0%; height: 100%; border-radius: 5px; transition: width 0.4s;"></div>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Interventions Executed -->
+                <div style="padding-left: 24px; border-left: 2px solid #dbeafe;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 6px;">
+                        <span style="color: #1e40af;">3. Autonomous Interventions Sent</span>
+                        <strong id="funnel-intervened" style="color: #3b82f6;">0</strong>
+                    </div>
+                    <div style="background: #f3f4f6; height: 10px; border-radius: 5px; overflow: hidden;">
+                        <div id="bar-intervened" style="background: #3b82f6; width: 0%; height: 100%; border-radius: 5px; transition: width 0.4s;"></div>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Successful Recoveries -->
+                <div style="padding-left: 36px; border-left: 2px solid #dcfce7;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 6px;">
+                        <span style="color: #166534; font-weight: 600;">4. Successfully Recovered</span>
+                        <strong id="funnel-recovered" style="color: #16a34a;">0</strong>
+                    </div>
+                    <div style="background: #f3f4f6; height: 10px; border-radius: 5px; overflow: hidden;">
+                        <div id="bar-recovered" style="background: #10b981; width: 0%; height: 100%; border-radius: 5px; transition: width 0.4s;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; padding: 12px; background: #f9fafb; border-radius: 6px; display: flex; justify-content: space-around; text-align: center; font-size: 0.82rem; color: #4b5563;">
+            <div>
+                <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase;">Recovery Conversion</div>
+                <strong id="funnel-rate-stat" style="font-size: 1.1rem; color: #10b981;">0.0%</strong>
+            </div>
+            <div style="border-left: 1px solid #e5e7eb;"></div>
+            <div>
+                <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase;">Safety Guardrail Rate</div>
+                <strong id="funnel-guard-stat" style="font-size: 1.1rem; color: #ef4444;">0.0%</strong>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cohort Analysis Card -->
+    <div style="background: #fff; padding: 22px; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <h3 style="margin: 0; font-size: 1.15rem; color: #111827;">Root Cause Cohort Analysis</h3>
+                <span class="status-badge" style="background:#f3f4f6; color:#3730a3; font-size:0.75rem;">Diagnosis Groups</span>
+            </div>
+            <p style="color: #666; font-size: 0.88rem; margin: 0 0 16px 0;">Breakdown of recovery effectiveness by underlying root cause.</p>
+            
+            <div style="max-height: 280px; overflow-y: auto; border: 1px solid #f3f4f6; border-radius: 6px;">
+                <table class="merchant-product-table" style="width: 100%; margin: 0; font-size: 0.88rem;">
+                    <thead style="background: #f9fafb; position: sticky; top: 0;">
+                        <tr>
+                            <th style="padding: 10px 12px;">Diagnosis</th>
+                            <th style="padding: 10px 12px;">Pipeline</th>
+                            <th style="padding: 10px 12px; text-align: center;">Detected</th>
+                            <th style="padding: 10px 12px; text-align: center;">Recovered</th>
+                            <th style="padding: 10px 12px; text-align: right;">Value Reclaimed</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cohort-table-body">
+                        <tr><td colspan="5" style="text-align: center; padding: 20px; color: #888;">Loading cohorts...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="margin-top: 14px; font-size: 0.8rem; color: #9ca3af; text-align: right;">
+            Grouped by AI-classified friction & failure reason
+        </div>
+    </div>
+</div>
+
+<!-- 4. Interactive Compliance & Verifiable Audit Trail -->
+<div style="background: #fff; padding: 22px; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 30px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h3 style="margin: 0 0 4px 0; font-size: 1.15rem; color: #111827;">Compliance & Verifiable Audit Trail</h3>
+            <p style="color: #6b7280; font-size: 0.88rem; margin: 0;">
+                Click any row to inspect complete autonomous agent reasoning, guardrail evaluations, and metadata.
+            </p>
+        </div>
+        
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <select id="audit-filter-scenario" onchange="filterAuditLogs()" style="padding: 6px 12px; font-size: 0.85rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #374151;">
+                <option value="all">All Pipelines</option>
+                <option value="payment_failure">Payment Failures</option>
+                <option value="checkout_abandonment">Checkout Abandonment</option>
+                <option value="overdue_receivable">Overdue Receivables</option>
+            </select>
+            <input type="text" id="audit-search-input" onkeyup="filterAuditLogs()" placeholder="Search logs..." style="padding: 6px 12px; font-size: 0.85rem; border: 1px solid #d1d5db; border-radius: 6px; width: 180px;">
+        </div>
+    </div>
+
+    <div style="max-height: 480px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <table class="merchant-product-table" style="width: 100%; margin: 0; font-size: 0.88rem; border-collapse: separate; border-spacing: 0;">
+            <thead style="background: #f9fafb; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #e5e7eb;">
+                <tr>
+                    <th style="padding: 10px 14px;">Timestamp</th>
+                    <th style="padding: 10px 14px;">Target / Case</th>
+                    <th style="padding: 10px 14px;">Pipeline</th>
+                    <th style="padding: 10px 14px;">Diagnosis</th>
+                    <th style="padding: 10px 14px;">Action / Decision</th>
+                    <th style="padding: 10px 14px; text-align: right;">Financial Impact</th>
+                    <th style="padding: 10px 14px; text-align: center;">Status</th>
+                    <th style="padding: 10px 14px; text-align: center;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="audit-table-body">
+                <tr><td colspan="8" style="text-align: center; padding: 25px; color: #888;">Loading audit trail...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 5. Interactive Audit Details Modal -->
+<div id="audit-detail-modal" class="modal" style="display:none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(2px);">
+    <div style="background: white; max-width: 680px; margin: 5% auto; padding: 24px 28px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); position: relative; max-height: 85vh; overflow-y: auto;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 14px; margin-bottom: 16px;">
+            <div>
+                <h2 id="modal-audit-title" style="margin: 0 0 4px 0; font-size: 1.25rem; color: #111827;">Action Audit Record</h2>
+                <span id="modal-audit-timestamp" style="font-size: 0.82rem; color: #6b7280;">Timestamp</span>
+            </div>
+            <button onclick="closeAuditModal()" style="background: none; border: none; font-size: 24px; color: #9ca3af; cursor: pointer; line-height: 1; padding: 4px;">&times;</button>
+        </div>
+
+        <div id="modal-audit-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Key Context Cards -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px;">
+                    <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase;">Pipeline</div>
+                    <div id="modal-audit-pipeline" style="margin-top: 4px; font-weight: 600;">—</div>
+                </div>
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px;">
+                    <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase;">Outcome Status</div>
+                    <div id="modal-audit-status" style="margin-top: 4px; font-weight: 600;">—</div>
+                </div>
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px;">
+                    <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase;">Ladder Step</div>
+                    <div id="modal-audit-ladder" style="margin-top: 4px; font-weight: 600;">Step 1</div>
+                </div>
+            </div>
+
+            <!-- Case & Financial Summary -->
+            <div style="background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 16px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #374151; font-weight: 700;">Case & Financial Context</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 0.88rem;">
+                    <div><span style="color:#6b7280;">Target / Reference:</span> <strong id="modal-audit-target" style="font-family: monospace;">—</strong></div>
+                    <div><span style="color:#6b7280;">Customer:</span> <strong id="modal-audit-customer">—</strong></div>
+                    <div><span style="color:#6b7280;">Amount at Risk:</span> <strong id="modal-audit-at-risk">₹0.00</strong></div>
+                    <div><span style="color:#6b7280;">Amount Recovered:</span> <strong id="modal-audit-recovered" style="color:#16a34a;">₹0.00</strong></div>
+                    <div><span style="color:#6b7280;">Discount Given:</span> <strong id="modal-audit-discount" style="color:#ea580c;">₹0.00</strong></div>
+                    <div><span style="color:#6b7280;">Diagnosis:</span> <strong id="modal-audit-diagnosis" style="text-transform: capitalize;">—</strong></div>
+                </div>
+            </div>
+
+            <!-- Autonomous Reasoning -->
+            <div>
+                <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: #374151; font-weight: 700;">Decision Rationale & Action Taken</h4>
+                <div id="modal-audit-reasoning" style="background: #f3f4f6; border-left: 4px solid #4f46e5; padding: 12px 14px; border-radius: 6px; font-size: 0.88rem; color: #1f2937; line-height: 1.5;">
+                    Rationale description...
+                </div>
+            </div>
+
+            <!-- Guardrail Checks -->
+            <div id="modal-guardrails-container">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: #374151; font-weight: 700;">Automated Guardrails Evaluated</h4>
+                <div id="modal-audit-guardrails" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; font-size: 0.85rem;">
+                    No guardrail data recorded.
+                </div>
+            </div>
+
+            <!-- Metadata & Traceability -->
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; font-size: 0.78rem; color: #6b7280; line-height: 1.6;">
+                <div><strong>Idempotency Key:</strong> <span id="modal-audit-idempotency" style="font-family: monospace;">—</span></div>
+                <div><strong>Action Type:</strong> <span id="modal-audit-action" style="font-family: monospace;">—</span></div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button onclick="closeAuditModal()" class="secondary-btn" style="padding: 8px 18px; font-size: 0.88rem;">Close</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .audit-clickable-row {
+        cursor: pointer;
+        transition: background-color 0.15s ease-in-out;
+    }
+    .audit-clickable-row:hover {
+        background-color: #f0f7ff !important;
+    }
+</style>
+
+<script>
+    let globalAuditLogs = [];
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function getScenarioBadge(sc) {
+        if (!sc) return '<span class="status-badge" style="background:#e0e7ff; color:#3730a3; font-size:0.75rem;">Pipeline</span>';
+        const s = sc.toLowerCase();
+        if (s.includes('payment_failure') || s.includes('failure')) {
+            return '<span class="status-badge" style="background:#fee2e2; color:#991b1b; font-size:0.75rem;">💳 Payment Failure</span>';
+        } else if (s.includes('receivable') || s.includes('invoice') || s.includes('overdue')) {
+            return '<span class="status-badge" style="background:#fef3c7; color:#92400e; font-size:0.75rem;">📄 Overdue Receivable</span>';
+        } else {
+            return '<span class="status-badge" style="background:#e0e7ff; color:#1e40af; font-size:0.75rem;">🛒 Checkout Abandonment</span>';
+        }
+    }
+
+    function getStatusBadge(status) {
+        const s = (status || "").toLowerCase();
+        if (s.includes("recovered")) {
+            return '<span class="status-badge" style="background:#dcfce7; color:#15803d; font-weight:600; font-size:0.75rem;">✓ Recovered</span>';
+        } else if (s.includes("blocked") || s.includes("suppressed")) {
+            return '<span class="status-badge" style="background:#fee2e2; color:#991b1b; font-weight:600; font-size:0.75rem;">🛡️ Blocked by Rule</span>';
+        } else if (s.includes("pending")) {
+            return '<span class="status-badge" style="background:#fef3c7; color:#92400e; font-weight:600; font-size:0.75rem;">⏳ Pending Approval</span>';
+        } else {
+            return `<span class="status-badge" style="background:#f3f4f6; color:#374151; font-weight:600; font-size:0.75rem;">${escapeHtml(status)}</span>`;
+        }
+    }
+
+    async function loadAdvancedMetrics() {
+        try {
+            const res = await fetch("/api/merchant/advanced-metrics");
+            if (res.ok) {
+                const data = await res.json();
+                
+                // 1. Overall Financial KPIs
+                const fin = data.financials || {};
+                const totalRiskVal = fin.total_at_risk !== undefined ? fin.total_at_risk : fin.total_abandoned_value;
+                document.getElementById("kpi-abandoned").innerText = "₹" + (fin.total_abandoned_value || totalRiskVal).toFixed(2);
+                document.getElementById("kpi-active-risk").innerText = "₹" + (fin.total_at_risk || 0).toFixed(2);
+                document.getElementById("kpi-lost").innerText = "₹" + (fin.total_lost || 0).toFixed(2);
+                
+                document.getElementById("kpi-agent").innerText = "₹" + (fin.total_recovered || 0).toFixed(2);
+                document.getElementById("kpi-cost").innerText = "₹" + (fin.cost_of_discounts || 0).toFixed(2);
+                document.getElementById("kpi-net").innerText = "₹" + (fin.net_revenue_add || 0).toFixed(2);
+                
+                // 2. 3-Pipeline Breakdown Cards
+                if (data.payment_failure) {
+                    const pf = data.payment_failure;
+                    document.getElementById("pf-total-cases").innerText = pf.total_cases + " cases";
+                    document.getElementById("pf-at-risk").innerText = "₹" + pf.at_risk.toFixed(2);
+                    document.getElementById("pf-recovered").innerText = "₹" + pf.recovered.toFixed(2) + ` (${pf.recovered_cases || 0} cases)`;
+                    document.getElementById("pf-recovery-rate").innerText = pf.recovery_rate.toFixed(1) + "%";
+                    document.getElementById("pf-lost").innerText = "₹" + (pf.lost || 0).toFixed(2);
+                    document.getElementById("pf-escalated").innerText = pf.escalated;
+                }
+
+                if (data.checkout_abandonment) {
+                    const ab = data.checkout_abandonment;
+                    document.getElementById("ab-total-cases").innerText = ab.total_cases + " cases";
+                    document.getElementById("ab-at-risk").innerText = "₹" + ab.at_risk.toFixed(2);
+                    document.getElementById("ab-recovered").innerText = "₹" + ab.recovered.toFixed(2) + ` (${ab.recovered_cases || 0} cases)`;
+                    document.getElementById("ab-recovery-rate").innerText = ab.recovery_rate.toFixed(1) + "%";
+                    document.getElementById("ab-lost").innerText = "₹" + (ab.lost || 0).toFixed(2);
+                    document.getElementById("ab-escalated").innerText = ab.escalated;
+                }
+
+                if (data.overdue_receivable) {
+                    const rec = data.overdue_receivable;
+                    document.getElementById("rec-total-cases").innerText = rec.total_cases + " cases";
+                    document.getElementById("rec-at-risk").innerText = "₹" + rec.at_risk.toFixed(2);
+                    document.getElementById("rec-recovered").innerText = "₹" + rec.recovered.toFixed(2) + ` (${rec.recovered_cases || 0} cases)`;
+                    document.getElementById("rec-recovery-rate").innerText = rec.recovery_rate.toFixed(1) + "%";
+                    document.getElementById("rec-lost").innerText = "₹" + (rec.lost || 0).toFixed(2);
+                    document.getElementById("rec-dso").innerText = (rec.dso_days || 0).toFixed(1) + " days";
+                }
+
+                // 3. Funnel
+                const f = data.funnel || {};
+                const totalDetected = (f.total_cases_detected || f.total_detected || 0);
+                document.getElementById("funnel-detected").innerText = totalDetected + " cases";
+                document.getElementById("funnel-suppressed").innerText = (f.suppressed_by_guardrails || 0);
+                document.getElementById("funnel-intervened").innerText = (f.interventions_attempted || 0);
+                document.getElementById("funnel-recovered").innerText = (f.successful_recoveries || 0);
+                
+                const det = Math.max(1, totalDetected);
+                document.getElementById("bar-suppressed").style.width = (((f.suppressed_by_guardrails || 0) / det) * 100) + "%";
+                document.getElementById("bar-intervened").style.width = (((f.interventions_attempted || 0) / det) * 100) + "%";
+                document.getElementById("bar-recovered").style.width = (((f.successful_recoveries || 0) / det) * 100) + "%";
+                
+                const recRate = ((f.successful_recoveries || 0) / det * 100).toFixed(1);
+                const guardRate = ((f.suppressed_by_guardrails || 0) / det * 100).toFixed(1);
+                document.getElementById("funnel-rate-stat").innerText = recRate + "%";
+                document.getElementById("funnel-guard-stat").innerText = guardRate + "%";
+
+                // 4. Cohorts
+                const tbody = document.getElementById("cohort-table-body");
+                tbody.innerHTML = "";
+                const cohorts = data.cohorts || {};
+                for (const [reason, stats] of Object.entries(cohorts)) {
+                    const tr = document.createElement("tr");
+                    const pct = stats.count > 0 ? (stats.recovered / stats.count * 100).toFixed(0) : 0;
+                    tr.innerHTML = `
+                        <td style="text-transform: capitalize; font-weight: 600; color:#111827; padding: 10px 12px;">${escapeHtml(reason.replace(/_/g, " "))}</td>
+                        <td style="padding: 10px 12px;">${getScenarioBadge(stats.scenario)}</td>
+                        <td style="text-align: center; font-weight: 600; padding: 10px 12px;">${stats.count}</td>
+                        <td style="text-align: center; padding: 10px 12px;">
+                            <span style="font-weight: 600; color: ${stats.recovered > 0 ? '#15803d' : '#6b7280'};">${stats.recovered}</span>
+                            <span style="color:#9ca3af; font-size:0.75rem;">(${pct}%)</span>
+                        </td>
+                        <td style="font-weight: 700; color: #16a34a; text-align: right; padding: 10px 12px;">₹${stats.value.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+                
+                if (Object.keys(cohorts).length === 0) {
+                    tbody.innerHTML = "<tr><td colspan=\"5\" style=\"text-align:center; padding:20px; color:#888;\">No diagnosis cohorts recorded yet.</td></tr>";
+                }
+                
+                // 5. Audit Log State
+                globalAuditLogs = data.audit_logs || [];
+                renderAuditLogsTable(globalAuditLogs);
+            }
+        } catch(e) {
+            console.error("Failed to load advanced metrics", e);
+        }
+    }
+
+    function renderAuditLogsTable(logs) {
+        const auditBody = document.getElementById("audit-table-body");
+        auditBody.innerHTML = "";
+        
+        if (!logs || logs.length === 0) {
+            auditBody.innerHTML = "<tr><td colspan=\"8\" style=\"text-align:center; padding:30px; color:#888;\">No audit logs matching criteria.</td></tr>";
+            return;
+        }
+
+        logs.forEach((log, idx) => {
+            const tr = document.createElement("tr");
+            tr.className = "audit-clickable-row";
+            tr.onclick = () => openAuditModal(log);
+            
+            const dateStr = log.timestamp ? new Date(log.timestamp).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : "";
+            
+            let impactStr = "<span style='color:#9ca3af;'>—</span>";
+            if (log.status === "Recovered" || log.financial_impact > 0) {
+                impactStr = `<span style="color: #16a34a; font-weight: 700;">+₹${(log.financial_impact || 0).toFixed(2)}</span>`;
+                if (log.discount_cost > 0) {
+                    impactStr += `<br><span style="color: #ea580c; font-size: 0.75rem;">Discount: -₹${log.discount_cost.toFixed(2)}</span>`;
+                }
+            } else if (log.status === "Blocked by Rule") {
+                impactStr = `<span style="color: #ef4444; font-size: 0.78rem; font-weight: 600;">(Guardrail Block)</span>`;
+            }
+            
+            let actionStr = (log.action || "none").replace(/_/g, " ");
+            let reasonSummary = log.reasoning ? (log.reasoning.substring(0, 50) + (log.reasoning.length > 50 ? '...' : '')) : '';
+
+            tr.innerHTML = `
+                <td style="white-space: nowrap; font-size: 0.82rem; color: #4b5563; padding: 11px 14px;">${dateStr}</td>
+                <td style="font-weight: 600; color: #111827; padding: 11px 14px; font-family: monospace;">${escapeHtml(log.session_id)}</td>
+                <td style="padding: 11px 14px;">${getScenarioBadge(log.scenario)}</td>
+                <td style="text-transform: capitalize; color: #374151; padding: 11px 14px;">${escapeHtml((log.diagnosis || '').replace(/_/g, " "))}</td>
+                <td style="text-transform: capitalize; padding: 11px 14px;">
+                    <div style="font-weight: 600; color: #111827;">${escapeHtml(actionStr)}</div>
+                    ${reasonSummary ? `<div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">${escapeHtml(reasonSummary)}</div>` : ''}
+                </td>
+                <td style="text-align: right; padding: 11px 14px;">${impactStr}</td>
+                <td style="text-align: center; padding: 11px 14px;">${getStatusBadge(log.status)}</td>
+                <td style="text-align: center; padding: 11px 14px;">
+                    <button class="secondary-btn" style="padding: 4px 10px; font-size: 0.75rem; border-radius: 4px; pointer-events: none;">Inspect 🔍</button>
+                </td>
+            `;
+            auditBody.appendChild(tr);
+        });
+    }
+
+    function filterAuditLogs() {
+        const scenarioFilter = document.getElementById("audit-filter-scenario").value;
+        const searchFilter = document.getElementById("audit-search-input").value.toLowerCase().trim();
+
+        let filtered = globalAuditLogs.filter(log => {
+            if (scenarioFilter !== "all" && log.scenario !== scenarioFilter) {
+                return false;
+            }
+            if (searchFilter) {
+                const target = (log.session_id || "").toLowerCase();
+                const diagnosis = (log.diagnosis || "").toLowerCase();
+                const action = (log.action || "").toLowerCase();
+                const reason = (log.reasoning || "").toLowerCase();
+                const status = (log.status || "").toLowerCase();
+                if (!target.includes(searchFilter) && !diagnosis.includes(searchFilter) && !action.includes(searchFilter) && !reason.includes(searchFilter) && !status.includes(searchFilter)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        renderAuditLogsTable(filtered);
+    }
+
+    function openAuditModal(log) {
+        document.getElementById("modal-audit-title").innerText = `Audit Event: ${log.action.replace(/_/g, ' ').toUpperCase()}`;
+        document.getElementById("modal-audit-timestamp").innerText = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unknown Timestamp';
+        
+        document.getElementById("modal-audit-pipeline").innerHTML = getScenarioBadge(log.scenario);
+        document.getElementById("modal-audit-status").innerHTML = getStatusBadge(log.status);
+        document.getElementById("modal-audit-ladder").innerText = log.ladder_step ? `Step ${log.ladder_step}` : 'Step 1';
+        
+        document.getElementById("modal-audit-target").innerText = log.session_id || `Case #${log.case_id}`;
+        document.getElementById("modal-audit-customer").innerText = log.customer_name || 'Customer';
+        document.getElementById("modal-audit-at-risk").innerText = `₹${(log.amount_at_risk || 0).toFixed(2)}`;
+        document.getElementById("modal-audit-recovered").innerText = `₹${(log.amount_recovered || 0).toFixed(2)}`;
+        document.getElementById("modal-audit-discount").innerText = `₹${(log.discount_cost || 0).toFixed(2)}`;
+        document.getElementById("modal-audit-diagnosis").innerText = (log.diagnosis || 'unclassified').replace(/_/g, ' ');
+
+        document.getElementById("modal-audit-reasoning").innerText = log.reasoning || 'No specific rationale supplied.';
+        document.getElementById("modal-audit-idempotency").innerText = log.idempotency_key || `case_${log.case_id}:action_${log.id}`;
+        document.getElementById("modal-audit-action").innerText = log.action || 'none';
+
+        // Guardrails rendering
+        const guardContainer = document.getElementById("modal-audit-guardrails");
+        if (log.guardrail_checks && typeof log.guardrail_checks === "object" && Object.keys(log.guardrail_checks).length > 0) {
+            let checksHtml = `<div style="display: flex; flex-wrap: wrap; gap: 8px 16px;">`;
+            for (const [k, v] of Object.entries(log.guardrail_checks)) {
+                const passed = (v === true || v === "passed" || v === "skipped" || (typeof v === "number" && v >= 0));
+                checksHtml += `
+                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem;">
+                        <span style="color: ${passed ? '#10b981' : '#ef4444'}; font-weight: bold;">${passed ? '✓' : '✗'}</span>
+                        <span style="color: #4b5563;"><strong>${escapeHtml(k)}:</strong> ${escapeHtml(String(v))}</span>
+                    </div>
+                `;
+            }
+            checksHtml += `</div>`;
+            guardContainer.innerHTML = checksHtml;
+        } else {
+            guardContainer.innerHTML = `<span style="color:#6b7280; font-style: italic;">No rule overrides triggered. Executed within standard autonomous boundaries.</span>`;
+        }
+
+        document.getElementById("audit-detail-modal").style.display = "block";
+    }
+
+    function closeAuditModal() {
+        document.getElementById("audit-detail-modal").style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById("audit-detail-modal");
+        if (event.target === modal) {
+            closeAuditModal();
+        }
+    };
+
+    document.addEventListener("DOMContentLoaded", loadAdvancedMetrics);
+</script>
+{% endblock %}

@@ -1,0 +1,360 @@
+{% extends "base_merchant.html" %}
+{% block title %}Overdue Receivables{% endblock %}
+
+{% block content %}
+<div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+    <div>
+        <h1 style="margin-bottom: 4px;">Overdue Receivables</h1>
+        <p style="color: #666; font-size: 14px; margin: 0;">Audit trail and dunning ladder progression for unpaid customer invoices.</p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <label style="font-size: 14px; color: #555;">Status:</label>
+        <select id="status-filter" onchange="renderCases()" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px;">
+            <option value="all">All Statuses</option>
+            <option value="new">New</option>
+            <option value="intervening">Intervening</option>
+            <option value="escalated">Escalated</option>
+            <option value="recovered">Recovered</option>
+            <option value="lost">Lost</option>
+            <option value="write_off_review">Write-off Review</option>
+        </select>
+        
+        <label style="font-size: 14px; color: #555; margin-left: 6px;">Step:</label>
+        <select id="step-filter" onchange="renderCases()" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px;">
+            <option value="all">All Steps</option>
+            <option value="0">Step 0 (Pending Due)</option>
+            <option value="1">Step 1 (Day 0 Reminder)</option>
+            <option value="2">Step 2 (+7d Reminder)</option>
+            <option value="3">Step 3 (+30d Escalation)</option>
+            <option value="4">Step 4 (+60d Write-off)</option>
+        </select>
+
+        <button class="primary-btn" onclick="openIssueInvoiceModal()" style="margin-left: 10px; padding: 7px 14px; font-weight: bold; cursor: pointer;">+ Issue Demo Invoice</button>
+    </div>
+</div>
+
+<!-- Top KPI Summary Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #ef4444; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total At Risk</div>
+        <div id="kpi-at-risk" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #ef4444; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">₹0.00</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Active overdue balance</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #10b981; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Recovered</div>
+        <div id="kpi-recovered" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #10b981; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">₹0.00</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Confirmed payments only</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #6b7280; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Lost</div>
+        <div id="kpi-lost" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #6b7280; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">₹0.00</div>
+        <div id="kpi-lost-sub" style="font-size: 12px; color: #999; margin-top: 4px;">0 lost / write-offs</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #3b82f6; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Recovery Rate</div>
+        <div id="kpi-rate" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #3b82f6; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">0.0%</div>
+        <div id="kpi-recovered-sub" style="font-size: 12px; color: #999; margin-top: 4px;">0 of 0 cases</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #8b5cf6; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Escalated to Human</div>
+        <div id="kpi-escalated" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #8b5cf6; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">0</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">30+ days overdue</div>
+    </div>
+    <div class="kpi-card" style="background: #fff; border: 1px solid #e5e5e5; border-left: 4px solid #f59e0b; padding: 18px 20px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 0; overflow: hidden;">
+        <div style="font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">DSO (Days)</div>
+        <div id="kpi-dso" style="font-size: clamp(1.2rem, 1.5vw, 1.55rem); font-weight: 800; color: #f59e0b; margin-top: 6px; word-break: break-word; overflow-wrap: anywhere;">0.0</div>
+        <div style="font-size: 12px; color: #999; margin-top: 4px;">Days Sales Outstanding</div>
+    </div>
+</div>
+
+<!-- Cases Table -->
+<div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 24px;">
+    <table class="merchant-product-table" style="min-width: 960px; width: 100%; border: none; border-radius: 0; margin-bottom: 0;">
+        <thead>
+            <tr>
+                <th>Customer</th>
+                <th>Invoice Number</th>
+                <th>Amount</th>
+                <th>Due Date</th>
+                <th>Days Overdue</th>
+                <th>Ladder Step</th>
+                <th>Status</th>
+                <th>Last Action</th>
+                <th style="text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody id="cases-table-body">
+            <tr><td colspan="9" style="text-align: center; padding: 24px; color: #888;">Loading overdue receivables cases...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Audit Trail Modal -->
+<div id="audit-modal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width: 750px; width: 90%; max-height: 85vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 12px; margin-bottom: 16px;">
+            <div>
+                <h2 id="modal-title" style="margin: 0; font-size: 18px;">Overdue Receivable Audit Trail</h2>
+                <div id="modal-subtitle" style="font-size: 13px; color: #666; margin-top: 4px;"></div>
+            </div>
+            <span class="close-modal" onclick="closeAuditModal()" style="font-size: 24px; cursor: pointer; color: #888; line-height: 1;">&times;</span>
+        </div>
+        
+        <div id="modal-body" style="overflow-y: auto; padding-right: 6px; flex: 1;">
+            <div style="text-align: center; padding: 20px; color: #888;">Loading audit trail...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allCases = [];
+    let currentOpenCaseId = null;
+
+    async function loadCases() {
+        try {
+            const res = await fetch("/api/merchant/receivables");
+            if (!res.ok) throw new Error("Failed to load receivables data");
+            const data = await res.json();
+            
+            // Render KPI cards
+            const s = data.summary || {};
+            document.getElementById("kpi-at-risk").innerText = "₹" + (s.total_at_risk || 0).toFixed(2);
+            document.getElementById("kpi-recovered").innerText = "₹" + (s.total_recovered || 0).toFixed(2);
+            document.getElementById("kpi-lost").innerText = "₹" + (s.total_lost || 0).toFixed(2);
+            document.getElementById("kpi-lost-sub").innerText = `${s.lost_cases || 0} lost / write-offs`;
+            document.getElementById("kpi-rate").innerText = (s.recovery_rate_pct || 0).toFixed(1) + "%";
+            document.getElementById("kpi-recovered-sub").innerText = `${s.recovered_cases || 0} of ${s.total_cases || 0} cases`;
+            document.getElementById("kpi-escalated").innerText = s.escalated_to_human_count || 0;
+            document.getElementById("kpi-dso").innerText = (s.dso_days || 0).toFixed(1);
+
+            allCases = data.cases || [];
+            renderCases();
+        } catch (e) {
+            document.getElementById("cases-table-body").innerHTML = `<tr><td colspan="9" style="text-align:center; color:red; padding:20px;">Error: ${e.message}</td></tr>`;
+        }
+    }
+
+    function renderCases() {
+        const statusFilter = document.getElementById("status-filter").value;
+        const stepFilter = document.getElementById("step-filter").value;
+
+        const filtered = allCases.filter(c => {
+            const statusMatch = statusFilter === "all" || c.status.toLowerCase() === statusFilter.toLowerCase() || (c.invoice_status && c.invoice_status.toLowerCase() === statusFilter.toLowerCase());
+            const stepMatch = stepFilter === "all" || String(c.ladder_step) === stepFilter;
+            return statusMatch && stepMatch;
+        });
+
+        const tbody = document.getElementById("cases-table-body");
+        tbody.innerHTML = "";
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:#888;">No overdue receivables cases found matching filters.</td></tr>`;
+            return;
+        }
+
+        filtered.forEach(c => {
+            const tr = document.createElement("tr");
+
+            const dateStr = c.last_action_at ? new Date(c.last_action_at).toLocaleString() : (c.created_at ? new Date(c.created_at).toLocaleString() : "N/A");
+            const dueDateStr = c.due_date ? new Date(c.due_date).toLocaleDateString() : "N/A";
+            
+            let amountDisplay = `₹${(c.amount_at_risk || 0).toFixed(2)}`;
+            if (c.amount_recovered > 0) {
+                amountDisplay += `<div style="font-size:11px; color:#10b981; font-weight:600;">✓ ₹${c.amount_recovered.toFixed(2)} paid</div>`;
+            }
+
+            // Days overdue badge
+            let overdueBadge = "";
+            if (c.status === "recovered") {
+                overdueBadge = `<span style="color:#10b981; font-weight:600; font-size:12px;">Paid</span>`;
+            } else if (c.is_overdue) {
+                overdueBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:12px;">⚡ +${c.days_overdue}d overdue</span>`;
+            } else {
+                overdueBadge = `<span style="background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:4px; font-size:12px;">Current</span>`;
+            }
+
+            // Ladder Step label
+            let stepLabel = `Step ${c.ladder_step}`;
+            let stepSub = "Pending Due";
+            if (c.ladder_step === 1) stepSub = "Day 0 Reminder";
+            else if (c.ladder_step === 2) stepSub = "+7d Reminder";
+            else if (c.ladder_step === 3) stepSub = "+30d Escalation";
+            else if (c.ladder_step === 4) stepSub = "+60d Write-off";
+
+            let displayStatus = c.status.toUpperCase();
+            if (c.invoice_status === "write_off_review") {
+                displayStatus = "WRITE_OFF_REVIEW";
+            }
+
+            tr.innerHTML = `
+                <td>
+                    <div style="font-weight: 600;">${escapeHtml(c.customer_name)}</div>
+                    <div style="font-size: 12px; color: #666;">${escapeHtml(c.customer_email)}</div>
+                </td>
+                <td>
+                    <span style="font-family: monospace; font-weight: 600; font-size: 13px;">${escapeHtml(c.invoice_number || 'N/A')}</span>
+                </td>
+                <td style="font-weight: 600;">${amountDisplay}</td>
+                <td style="font-size: 13px; color: #444;">${dueDateStr}</td>
+                <td>${overdueBadge}</td>
+                <td>
+                    <span style="font-weight: 600; font-size: 13px;">${stepLabel}</span>
+                    <div style="font-size: 11px; color: #777;">${stepSub}</div>
+                </td>
+                <td>
+                    <span class="status-badge ${displayStatus.toLowerCase()}">${displayStatus}</span>
+                    ${c.escalated_to_human ? '<div style="font-size:11px; color:#991b1b; font-weight:bold; margin-top:2px;">⚠️ Escalated</div>' : ''}
+                </td>
+                <td style="font-size: 13px; color: #555;">${dateStr}</td>
+                <td style="text-align: right;">
+                    <button class="primary-btn" style="padding: 6px 12px; font-size: 12px;" onclick="openAuditTrail(${c.id})">View audit trail</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function closeAuditModal() {
+        document.getElementById("audit-modal").style.display = "none";
+    }
+
+    async function openAuditTrail(caseId) {
+        currentOpenCaseId = caseId;
+        const modal = document.getElementById("audit-modal");
+        const body = document.getElementById("modal-body");
+        const title = document.getElementById("modal-title");
+        const sub = document.getElementById("modal-subtitle");
+
+        modal.style.display = "block";
+        body.innerHTML = "<div style='text-align:center; padding:30px; color:#888;'>Loading audit trail...</div>";
+
+        try {
+            const res = await fetch(`/api/merchant/receivables/${caseId}/audit-trail`);
+            if (!res.ok) throw new Error("Failed to load audit trail");
+            const data = await res.json();
+
+            title.innerText = `Case #${data.case_id} — Overdue Receivable Audit Trail`;
+            sub.innerText = `Invoice: ${data.invoice_number || 'N/A'} | Status: ${data.status.toUpperCase()} | Amount at Risk: ₹${(data.amount_at_risk || 0).toFixed(2)}`;
+
+            if (!data.logs || data.logs.length === 0) {
+                body.innerHTML = "<div style='padding:20px; text-align:center; color:#666;'>No action logs recorded for this case.</div>";
+                return;
+            }
+
+            let html = `<div style="display: flex; flex-direction: column; gap: 14px;">`;
+            
+            data.logs.forEach((log, idx) => {
+                const ts = log.created_at ? new Date(log.created_at).toLocaleString() : "Unknown Time";
+                const isPending = log.outcome === "pending_approval";
+                
+                // Parse guardrails
+                let checksHtml = "";
+                if (log.guardrail_checks && typeof log.guardrail_checks === "object") {
+                    const entries = Object.entries(log.guardrail_checks);
+                    if (entries.length > 0) {
+                        checksHtml = `
+                            <div style="margin-top: 8px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 12px; font-size: 12px;">
+                                <strong style="color: #374151;">Guardrail Checks:</strong>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 4px;">
+                                    ${entries.map(([k, v]) => `
+                                        <span style="color: #4b5563;">
+                                            <span style="color: #10b981; font-weight: bold;">✓</span> 
+                                            <strong>${escapeHtml(k)}:</strong> ${escapeHtml(String(v))}
+                                        </span>
+                                    `).join("")}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                html += `
+                    <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-weight: 700; font-size: 13px; color: #111827;">Step ${log.ladder_step}: ${escapeHtml(formatActionType(log.action_type))}</span>
+                                <span class="status-badge ${escapeHtml((log.outcome || 'unknown').toLowerCase())}">${escapeHtml(log.outcome || 'unknown')}</span>
+                            </div>
+                            <span style="font-size: 12px; color: #6b7280;">${ts}</span>
+                        </div>
+                        
+                        <div style="font-size: 13px; color: #374151; margin-bottom: 6px;">
+                            ${escapeHtml(log.reason || 'No description available.')}
+                        </div>
+
+                        ${checksHtml}
+
+                        ${isPending ? `
+                            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e5e7eb; display: flex; justify-content: flex-end; gap: 8px;">
+                                <button class="primary-btn" style="background: #10b981; padding: 6px 14px; font-size: 12px;" onclick="approveAction(${log.id})">Approve Action</button>
+                                <button class="primary-btn" style="background: #ef4444; padding: 6px 14px; font-size: 12px;" onclick="rejectAction(${log.id})">Reject</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            body.innerHTML = html;
+        } catch (e) {
+            body.innerHTML = `<div style='padding:20px; text-align:center; color:red;'>Error loading audit trail: ${e.message}</div>`;
+        }
+    }
+
+    function formatActionType(str) {
+        if (!str) return "Action";
+        return str.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function approveAction(logId) {
+        if (!confirm("Are you sure you want to approve this action?")) return;
+        try {
+            const res = await fetch(`/api/merchant/recovery-actions/${logId}/approve`, { method: "POST" });
+            if (res.ok) {
+                alert("Action approved!");
+                openAuditTrail(currentOpenCaseId);
+                loadCases();
+            } else {
+                const err = await res.json();
+                alert("Error: " + (err.detail || "Approval failed"));
+            }
+        } catch (e) {
+            alert("Network error");
+        }
+    }
+
+    async function rejectAction(logId) {
+        if (!confirm("Are you sure you want to reject this action?")) return;
+        try {
+            const res = await fetch(`/api/merchant/recovery-actions/${logId}/reject`, { method: "POST" });
+            if (res.ok) {
+                alert("Action rejected!");
+                openAuditTrail(currentOpenCaseId);
+                loadCases();
+            } else {
+                const err = await res.json();
+                alert("Error: " + (err.detail || "Rejection failed"));
+            }
+        } catch (e) {
+            alert("Network error");
+        }
+    }
+
+    // Modal close when clicking outside
+    window.onclick = function(event) {
+        const auditModal = document.getElementById("audit-modal");
+        if (event.target === auditModal) {
+            auditModal.style.display = "none";
+        }
+    };
+
+    loadCases();
+</script>
+{% endblock %}

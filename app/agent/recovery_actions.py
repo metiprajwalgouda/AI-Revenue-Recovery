@@ -44,6 +44,19 @@ DISCOUNT_BY_REASON = {
                                                       # to prove cap_discount() actually clamps it
 }
 
+def is_discount_allowed(predicted_reason_str: str) -> bool:
+    """Centralized guardrail: determines if a given abandonment reason permits a discount.
+    Used by both automated and manual recovery channels to ensure technical-failure
+    sessions never receive discounts."""
+    if predicted_reason_str in ("price_too_high", "price_shock", "hesitation"):
+        return True
+    try:
+        reason_enum = AbandonmentReason(predicted_reason_str)
+    except ValueError:
+        return False
+        
+    action = REASON_ACTION_MAP.get(reason_enum, RecoveryAction.FLAG_FOR_MANUAL_REVIEW)
+    return action == RecoveryAction.SEND_DISCOUNT_NUDGE
 
 def decide_action(event: CheckoutEvent, classification: ClassificationResult) -> RecoveryAction:
     """Pure decision function: given an event + its classification, what should we do?
@@ -131,6 +144,7 @@ def execute_action(
         # by a separate reconciliation step that checks actual payment status.
         amount_offered=amount if result.success else None,
         payment_link_id=result.payment_link_id,
+        short_url=result.short_url,
         error_message=result.error_message,
         timestamp=now,
     )

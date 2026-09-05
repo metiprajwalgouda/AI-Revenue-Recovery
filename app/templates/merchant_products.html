@@ -1,35 +1,409 @@
 {% extends "base_merchant.html" %}
-{% block title %}Products{% endblock %}
+{% block title %}Product Catalog — Merchant Portal{% endblock %}
 {% block content %}
-<div class="section-header">
-    <h1>Products</h1>
-    <button id="add-product-btn">+ Add Product</button>
+<style>
+    .prod-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 16px;
+        margin-bottom: 28px;
+        width: 100%;
+    }
+    .kpi-card {
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 18px 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        min-width: 0;
+        overflow: hidden;
+    }
+    .kpi-label {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #6b7280;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+    }
+    .kpi-val {
+        font-size: clamp(1.2rem, 1.5vw, 1.55rem);
+        font-weight: 800;
+        color: #111827;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+    
+    .filter-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #ffffff;
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 20px;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    .search-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 240px;
+    }
+    .search-input {
+        width: 100%;
+        padding: 8px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 13px;
+        outline: none;
+    }
+    .filter-pills {
+        display: flex;
+        gap: 8px;
+    }
+    .filter-pill-btn {
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #4b5563;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .filter-pill-btn.active {
+        background: #111827;
+        color: #ffffff;
+        border-color: #111827;
+    }
+    
+    .products-container {
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        width: 100%;
+    }
+    .merchant-product-table {
+        width: 100%;
+        min-width: 680px;
+        border-collapse: collapse;
+    }
+    .merchant-product-table th {
+        text-align: left;
+        background: #f9fafb;
+        padding: 14px 18px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #6b7280;
+        border-bottom: 1px solid #e5e7eb;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .merchant-product-table td {
+        padding: 16px 18px;
+        font-size: 14px;
+        color: #374151;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+    }
+    .product-row-info {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .table-prod-img {
+        width: 48px;
+        height: 48px;
+        object-fit: cover;
+        border-radius: 8px;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        flex-shrink: 0;
+    }
+    .prod-name-title {
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 3px;
+    }
+    .prod-desc-preview {
+        font-size: 12px;
+        color: #6b7280;
+        max-width: 320px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .status-active { background: #dcfce7; color: #15803d; }
+    .status-inactive { background: #fee2e2; color: #b91c1c; }
+    
+    .stock-tag {
+        font-weight: 700;
+    }
+    .stock-tag.low { color: #ea580c; }
+    .stock-tag.out { color: #dc2626; }
+    
+    .action-btn-group {
+        display: flex;
+        gap: 8px;
+    }
+    .btn-table-edit {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-table-edit:hover { background: #dbeafe; }
+    .btn-table-deact {
+        background: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-table-deact:hover { background: #fee2e2; }
+    
+    /* Modal / Slide-in Form */
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(2px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+    .modal-card {
+        background: #ffffff;
+        border-radius: 16px;
+        max-width: 560px;
+        width: 100%;
+        padding: 28px;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 800;
+        color: #111827;
+    }
+    .form-group {
+        margin-bottom: 16px;
+    }
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 6px;
+    }
+    .form-group input, .form-group textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+    }
+    .form-row-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 24px;
+    }
+    .btn-save-modal {
+        background: #2563eb;
+        color: #ffffff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    .btn-cancel-modal {
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #e5e7eb;
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+    }
+</style>
+
+<div class="prod-header-row">
+    <div>
+        <h1 style="margin: 0 0 6px 0; font-size: 24px; font-weight: 800; color: #111827;">Product Catalog & Inventory</h1>
+        <p style="margin: 0; font-size: 14px; color: #6b7280;">Manage your live storefront offerings, prices, stock, and high-converting product listings.</p>
+    </div>
+    <button id="add-product-btn" type="button" onclick="openProductForm()" class="primary-btn" style="padding: 10px 20px; font-weight: 700; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+        <span>+</span> Add Product
+    </button>
 </div>
-<div id="product-form-wrap" style="display:none;" class="merchant-form-card">
-    <h3 id="product-form-title">Add Product</h3>
-    <form id="product-form">
-        <input type="hidden" name="product_id" value="">
-        <label>Name <input type="text" name="name" required></label>
-        <label>Description <textarea name="description" rows="2"></textarea></label>
-        <label>Price (₹) <input type="number" name="price" step="0.01" min="0.01" required></label>
-        <label>Stock <input type="number" name="stock" min="0" required></label>
-        <label>Image URL <input type="url" name="image_url" placeholder="https://..."></label>
-        <div class="form-actions">
-            <button type="submit">Save</button>
-            <button type="button" id="cancel-product-form">Cancel</button>
+
+<!-- KPI Cards -->
+<div class="kpi-row">
+    <div class="kpi-card">
+        <div class="kpi-label">Total Products</div>
+        <div class="kpi-val" id="kpi-total-prods">0</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Active For Sale</div>
+        <div class="kpi-val" id="kpi-active-prods" style="color: #059669;">0</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Low / Out of Stock</div>
+        <div class="kpi-val" id="kpi-low-stock" style="color: #ea580c;">0</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Inventory Units</div>
+        <div class="kpi-val" id="kpi-total-units">0</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="search-wrap">
+        <span>🔍</span>
+        <input type="text" id="merchant-prod-search" class="search-input" placeholder="Search by product name or description...">
+    </div>
+    <div class="filter-pills">
+        <button type="button" class="filter-pill-btn active" onclick="setMerchantFilter('all', this)">All</button>
+        <button type="button" class="filter-pill-btn" onclick="setMerchantFilter('active', this)">Active</button>
+        <button type="button" class="filter-pill-btn" onclick="setMerchantFilter('lowstock', this)">Low Stock</button>
+        <button type="button" class="filter-pill-btn" onclick="setMerchantFilter('inactive', this)">Inactive</button>
+    </div>
+</div>
+
+<div id="error-banner" class="error-banner" style="display:none; margin-bottom: 20px;"></div>
+
+<!-- Product Table Container -->
+<div class="products-container">
+    <table class="merchant-product-table">
+        <thead>
+            <tr>
+                <th>Product Details</th>
+                <th>Price (₹)</th>
+                <th>Stock Level</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="product-table-body">
+            <tr><td colspan="5" style="text-align: center; padding: 32px; color: #6b7280;">Loading catalog...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Add / Edit Modal -->
+<div id="product-modal-backdrop" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="product-form-title">Add New Product</h3>
+            <button type="button" onclick="closeProductForm()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: #6b7280; line-height: 1;">✕</button>
         </div>
-    </form>
+        
+        <form id="product-form" onsubmit="handleProductFormSubmit(event)">
+            <input type="hidden" id="prod-input-id" name="product_id" value="">
+            
+            <div class="form-group">
+                <label for="prod-input-name">Product Name *</label>
+                <input type="text" id="prod-input-name" name="name" placeholder="e.g. Sony WH-1000XM5 Headphones" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="prod-input-desc">Description</label>
+                <textarea id="prod-input-desc" name="description" rows="3" placeholder="Key highlights, specs, materials..."></textarea>
+            </div>
+            
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label for="prod-input-price">Price (₹) *</label>
+                    <input type="number" id="prod-input-price" name="price" step="0.01" min="0.01" placeholder="2499.00" required>
+                </div>
+                <div class="form-group">
+                    <label for="prod-input-stock">Available Stock Units *</label>
+                    <input type="number" id="prod-input-stock" name="stock" min="0" placeholder="25" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="prod-input-img">Image URL (Direct Image URL or Unsplash link)</label>
+                <input type="url" id="prod-input-img" name="image_url" placeholder="https://images.unsplash.com/photo-...">
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel-modal" onclick="closeProductForm()">Cancel</button>
+                <button type="submit" id="btn-submit-product" class="btn-save-modal">Save Product</button>
+            </div>
+        </form>
+    </div>
 </div>
-<div id="error-banner" class="error-banner" style="display:none;"></div>
-<table class="merchant-product-table">
-    <thead>
-        <tr><th>Name</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr>
-    </thead>
-    <tbody id="product-table-body">
-        <tr><td colspan="5">Loading...</td></tr>
-    </tbody>
-</table>
 {% endblock %}
+
 {% block scripts %}
 <script src="/static/js/merchant_dashboard.js"></script>
-{% endblock %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        if (typeof loadMyProducts === 'function') {
+            loadMyProducts();
+        }
+        const addBtn = document.getElementById("add-product-btn");
+        if (addBtn) {
+            addBtn.addEventListener("click", function() {
+                if (typeof openProductForm === 'function') openProductForm();
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -20,7 +20,13 @@ def compute_summary(outcomes: list[RecoveryOutcome], original_cart_values: dict[
 
     method_breakdown = {"rule": 0, "llm": 0}
     for o in outcomes:
-        method_breakdown[o.classification.method_used] += 1
+        m = o.classification.method_used
+        if m in method_breakdown:
+            method_breakdown[m] += 1
+        elif str(m).startswith("llm"):
+            method_breakdown["llm"] += 1
+        else:
+            method_breakdown[m] = method_breakdown.get(m, 0) + 1
 
     exceptions = [
         {"event_id": o.event_id, "action": o.action_taken.value, "error": o.error_message}

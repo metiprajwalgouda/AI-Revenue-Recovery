@@ -11,7 +11,6 @@
         <a href="/merchant" class="logo">ShopDemo <span class="merchant-badge">Merchant</span></a>
         <nav>
             <a href="/" target="_blank" rel="noopener">View Storefront</a>
-            <a href="#" id="merchant-logout-link">Log Out</a>
         </nav>
     </header>
     <div class="merchant-layout">
@@ -19,12 +18,350 @@
             <a href="/merchant" class="sidebar-link {% if active_section == 'overview' %}active{% endif %}">Overview</a>
             <a href="/merchant/products" class="sidebar-link {% if active_section == 'products' %}active{% endif %}">Products</a>
             <a href="/merchant/orders" class="sidebar-link {% if active_section == 'orders' %}active{% endif %}">Orders</a>
+            <a href="/merchant/checkout-abandonment" class="sidebar-link {% if active_section == 'checkout-abandonment' %}active{% endif %}">Checkout Abandonment</a>
+            <a href="/merchant/payment-failures" class="sidebar-link {% if active_section == 'payment-failures' %}active{% endif %}">Payment Failures</a>
+            <a href="/merchant/receivables" class="sidebar-link {% if active_section == 'receivables' %}active{% endif %}">Overdue Receivables</a>
+            <a href="/merchant/customers" class="sidebar-link {% if active_section == 'customers' %}active{% endif %}">Customers</a>
+            <a href="/merchant/priority" class="sidebar-link {% if active_section == 'priority' %}active{% endif %}">Priority Follow-ups</a>
+            <a href="/merchant/revenue-intelligence" class="sidebar-link {% if active_section == 'revenue-intelligence' %}active{% endif %}">Revenue Intelligence</a>
+            <a href="/merchant/settings" class="sidebar-link {% if active_section == 'settings' %}active{% endif %}">Settings</a>
+            <a href="/merchant/profile" class="sidebar-link {% if active_section == 'profile' %}active{% endif %}">Profile</a>
+            <a href="#" class="sidebar-link" onclick="logoutMerchant(event)">Logout</a>
         </aside>
         <main class="merchant-content">
             {% block content %}{% endblock %}
         </main>
     </div>
     <script src="/static/js/merchant_nav.js"></script>
+    
+    <script>
+        async function logoutMerchant(e) {
+            e.preventDefault();
+            await fetch("/api/merchant/logout", { method: "POST" });
+            window.location.href = "/merchant/login";
+        }
+    </script>
+    
+    <!-- Manual Recovery Modal (Shared) -->
+    <div id="manual-recovery-modal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="background-color: #fff; margin: 10% auto; padding: 20px; width: 400px; border-radius: 8px;">
+            <span class="close-recovery-modal" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+            <h2>Send Recovery Offer</h2>
+            <form id="manual-recovery-form">
+                <input type="hidden" id="manual-recovery-session-id">
+                <input type="hidden" id="manual-recovery-case-id">
+                
+                <div style="margin-bottom: 15px;">
+                    <label><strong>Channel</strong></label><br>
+                    <select id="manual-recovery-channel" style="width: 100%; padding: 5px;">
+                        <option value="email">Email</option>
+                        <option value="call">Call</option>
+                        <option value="sms">SMS</option>
+                        <option value="whatsapp" disabled title="Requires WhatsApp Business approval — not available on trial">WhatsApp (Requires Business Approval)</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label><strong>Offer/Discount</strong></label><br>
+                    <select id="manual-recovery-coupon" style="width: 100%; padding: 5px; margin-bottom: 5px;">
+                        <option value="">-- No Coupon / Custom Discount --</option>
+                    </select>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="manual-recovery-pct" placeholder="Custom % Off" min="1" max="100" style="flex: 1; padding: 5px;">
+                        <input type="number" id="manual-recovery-amt" placeholder="Custom ₹ Off" min="1" style="flex: 1; padding: 5px;">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label><strong>Add a personal message (Optional)</strong></label><br>
+                    <textarea id="manual-recovery-message" placeholder="We'd love to have you back!..." style="width: 100%; padding: 5px; height: 60px;"></textarea>
+                </div>
+                
+                <button type="submit" class="primary-btn" id="manual-recovery-submit" style="width: 100%;">Send Offer</button>
+                <div id="manual-recovery-msg" style="margin-top: 10px; font-weight: bold; font-size: 14px;"></div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        document.querySelector(".close-recovery-modal").onclick = () => {
+            document.getElementById("manual-recovery-modal").style.display = "none";
+        };
+        
+        async function openManualRecovery(sessionId, reason = 'unknown', caseId = null) {
+            document.getElementById("manual-recovery-session-id").value = sessionId || "";
+            document.getElementById("manual-recovery-case-id").value = caseId || "";
+            document.getElementById("manual-recovery-msg").innerText = "";
+            document.getElementById("manual-recovery-modal").style.display = "block";
+                      const isTechnical = ['bank_gateway_failure', 'otp_timeout', 'card_declined', 'unknown', 'risk_terminal'].includes(reason);
+            const isDiscountEligible = ['high_amount_hesitation', 'price_shock_at_checkout'].includes(reason);
+            
+            const channelSel = document.getElementById("manual-recovery-channel");
+            const couponSel = document.getElementById("manual-recovery-coupon");
+            const pctInp = document.getElementById("manual-recovery-pct");
+            const amtInp = document.getElementById("manual-recovery-amt");
+            let warningMsg = document.getElementById("manual-recovery-tech-warning");
+            
+            // Find SMS option
+            const smsOption = Array.from(channelSel.options).find(opt => opt.value === 'sms');
+            
+            if (isTechnical) {
+                couponSel.disabled = true;
+                pctInp.disabled = true;
+                amtInp.disabled = true;
+                
+                if (!warningMsg) {
+                    warningMsg = document.createElement("div");
+                    warningMsg.id = "manual-recovery-tech-warning";
+                    warningMsg.style.color = "#856404";
+                    warningMsg.style.backgroundColor = "#fff3cd";
+                    warningMsg.style.padding = "10px";
+                    warningMsg.style.marginTop = "10px";
+                    warningMsg.style.borderRadius = "4px";
+                    warningMsg.style.fontSize = "12px";
+                    couponSel.parentNode.appendChild(warningMsg);
+                }
+                warningMsg.innerText = "This case was diagnosed as a technical failure or risk block — only a payment retry link can be sent, not a discount.";
+            } else {
+                couponSel.disabled = false;
+                pctInp.disabled = false;
+                amtInp.disabled = false;
+                if (warningMsg) warningMsg.remove();
+            }
+
+            // Guard SMS based on discount eligibility
+            if (smsOption) {
+                if (!isDiscountEligible) {
+                    smsOption.disabled = true;
+                    smsOption.text = "SMS (Unavailable: requires discount eligible)";
+                    if (channelSel.value === 'sms') { channelSel.value = 'email'; }
+                } else {
+                    smsOption.disabled = false;
+                    smsOption.text = "SMS";
+                }
+            }
+            
+            // Load coupons
+            try {
+                const res = await fetch("/api/merchant/coupons");
+                if (res.ok) {
+                    const coupons = await res.json();
+                    couponSel.innerHTML = '<option value="">-- No Coupon / Custom Discount --</option>';
+                    coupons.filter(c => c.active).forEach(c => {
+                        const opt = document.createElement("option");
+                        opt.value = c.id;
+                        const d = c.discount_pct ? `${c.discount_pct}%` : `₹${c.discount_amount}`;
+                        opt.textContent = `${c.code} — ${d} off`;
+                        couponSel.appendChild(opt);
+                    });
+                }
+            } catch(e){}
+        }
+        
+        document.getElementById("manual-recovery-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById("manual-recovery-submit");
+            const msg = document.getElementById("manual-recovery-msg");
+            
+            const sessVal = document.getElementById("manual-recovery-session-id").value;
+            const caseVal = document.getElementById("manual-recovery-case-id").value;
+
+            const payload = {
+                session_id: sessVal ? parseInt(sessVal) : null,
+                case_id: caseVal ? parseInt(caseVal) : null,
+                channel: document.getElementById("manual-recovery-channel").value,
+                coupon_id: document.getElementById("manual-recovery-coupon").value ? parseInt(document.getElementById("manual-recovery-coupon").value) : null,
+                discount_pct: document.getElementById("manual-recovery-pct").value ? parseInt(document.getElementById("manual-recovery-pct").value) : null,
+                discount_amount: document.getElementById("manual-recovery-amt").value ? parseFloat(document.getElementById("manual-recovery-amt").value) : null,
+                custom_message: document.getElementById("manual-recovery-message").value || null
+            };
+            
+            btn.disabled = true;
+            btn.innerText = "Sending...";
+            msg.innerText = "";
+            
+            try {
+                const res = await fetch("/api/merchant/manual-recovery", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status === "success") {
+                        msg.style.color = "green";
+                        msg.innerText = "Sent successfully!";
+                        setTimeout(() => {
+                            document.getElementById("manual-recovery-modal").style.display = "none";
+                            // Try to reload parent data if available
+                            if(typeof loadPriorityOrders === 'function') loadPriorityOrders();
+                            if(typeof loadOrders === 'function') loadOrders();
+                        }, 1000);
+                    } else {
+                        msg.style.color = "red";
+                        msg.innerText = "Failed to send via " + payload.channel + ": " + (data.error || "Unknown error");
+                    }
+                } else {
+                    const err = await res.json();
+                    msg.style.color = "red";
+                    msg.innerText = "Error: " + (err.detail || "Server error");
+                }
+            } catch (err) {
+                msg.style.color = "red";
+                msg.innerText = "Network error";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Send Offer";
+            }
+        });
+    </script>
+
+    <!-- Issue Invoice Modal (Shared) -->
+    <div id="issue-invoice-modal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="background-color: #fff; margin: 8% auto; padding: 25px; width: 450px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <span class="close-invoice-modal" onclick="closeIssueInvoiceModal()" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+            <h2 style="margin-top:0;">Issue Demo Invoice</h2>
+            <p style="font-size: 0.85em; color: #666; margin-top:-5px;">Create a receivable against a customer to test the overdue dunning ladder.</p>
+            
+            <form id="issue-invoice-form">
+                <div style="margin-bottom: 15px;">
+                    <label><strong>Customer *</strong></label><br>
+                    <select id="invoice-customer-id" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" required>
+                        <option value="">Loading customers...</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label><strong>Invoice Amount (₹) *</strong></label><br>
+                    <input type="number" id="invoice-amount" placeholder="e.g. 5000" min="1" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;" required>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label><strong>Due Date / Demo Mode *</strong></label><br>
+                    <select id="invoice-due-shortcut" onchange="toggleCustomDueDate(this.value)" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 6px;">
+                        <option value="5m">⚡ Due in 5 minutes (Demo fast-track)</option>
+                        <option value="15m">⚡ Due in 15 minutes (Demo mode)</option>
+                        <option value="1h">⚡ Due in 1 hour (Demo mode)</option>
+                        <option value="1d">Due in 1 day</option>
+                        <option value="7d" selected>Due in 7 days (Net-7 standard)</option>
+                        <option value="14d">Due in 14 days (Net-14)</option>
+                        <option value="30d">Due in 30 days (Net-30)</option>
+                        <option value="custom">📅 Custom Date & Time...</option>
+                    </select>
+                    <input type="datetime-local" id="invoice-custom-due-date" style="display: none; width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label><strong>Invoice Number (Optional)</strong></label><br>
+                    <input type="text" id="invoice-number" placeholder="Leave blank to auto-generate (e.g. INV-2026-XXXX)" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                </div>
+                
+                <button type="submit" class="primary-btn" id="issue-invoice-submit" style="width: 100%; padding: 10px; font-weight: bold; cursor: pointer;">Issue Invoice & Create Case</button>
+                <div id="issue-invoice-msg" style="margin-top: 12px; font-weight: bold; font-size: 14px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function toggleCustomDueDate(val) {
+            const customInput = document.getElementById("invoice-custom-due-date");
+            if (val === "custom") {
+                customInput.style.display = "block";
+                customInput.required = true;
+            } else {
+                customInput.style.display = "none";
+                customInput.required = false;
+            }
+        }
+
+        function closeIssueInvoiceModal() {
+            document.getElementById("issue-invoice-modal").style.display = "none";
+        }
+
+        async function openIssueInvoiceModal() {
+            const modal = document.getElementById("issue-invoice-modal");
+            const custSelect = document.getElementById("invoice-customer-id");
+            const msg = document.getElementById("issue-invoice-msg");
+            msg.innerText = "";
+            msg.style.color = "";
+            modal.style.display = "block";
+            
+            custSelect.innerHTML = '<option value="">Loading customers...</option>';
+            try {
+                const res = await fetch("/api/merchant/customers");
+                if (res.ok) {
+                    const customers = await res.json();
+                    if (customers.length === 0) {
+                        custSelect.innerHTML = '<option value="">No registered customers found</option>';
+                    } else {
+                        custSelect.innerHTML = '<option value="">-- Select a Customer --</option>';
+                        customers.forEach(c => {
+                            const opt = document.createElement("option");
+                            opt.value = c.id;
+                            opt.textContent = `${c.name || 'Guest'} (${c.email || 'No email'})`;
+                            custSelect.appendChild(opt);
+                        });
+                    }
+                } else {
+                    custSelect.innerHTML = '<option value="">Failed to load customers</option>';
+                }
+            } catch(e) {
+                custSelect.innerHTML = '<option value="">Error loading customers</option>';
+            }
+        }
+
+        document.getElementById("issue-invoice-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById("issue-invoice-submit");
+            const msg = document.getElementById("issue-invoice-msg");
+            
+            const customerId = parseInt(document.getElementById("invoice-customer-id").value);
+            const amount = parseFloat(document.getElementById("invoice-amount").value);
+            const shortcut = document.getElementById("invoice-due-shortcut").value;
+            const customDate = document.getElementById("invoice-custom-due-date").value;
+            const invoiceNumber = document.getElementById("invoice-number").value.trim() || null;
+            
+            const dueDate = (shortcut === "custom") ? customDate : shortcut;
+            
+            btn.disabled = true;
+            btn.innerText = "Creating Invoice...";
+            msg.innerText = "";
+            
+            try {
+                const res = await fetch("/api/merchant/invoices", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        customer_id: customerId,
+                        amount: amount,
+                        due_date: dueDate,
+                        invoice_number: invoiceNumber
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    msg.style.color = "green";
+                    msg.innerHTML = `✅ Invoice <strong>${data.invoice.invoice_number}</strong> issued! Linked to RecoveryCase #${data.recovery_case.id} (status: ${data.recovery_case.status}).`;
+                    setTimeout(() => {
+                        document.getElementById("issue-invoice-modal").style.display = "none";
+                        if (typeof loadOverviewInvoices === 'function') loadOverviewInvoices();
+                    }, 2000);
+                } else {
+                    const err = await res.json();
+                    msg.style.color = "red";
+                    msg.innerText = "Error: " + (err.detail || "Failed to create invoice");
+                }
+            } catch(e) {
+                msg.style.color = "red";
+                msg.innerText = "Network error";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Issue Invoice & Create Case";
+            }
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -30,7 +30,7 @@ function addToCart(product) {
     if (existing) {
         existing.quantity += 1;
     } else {
-        cart.push({ product_id: product.id, name: product.name, price: product.price, quantity: 1 });
+        cart.push({ product_id: product.id, name: product.name, price: Number(product.price), quantity: 1 });
     }
     saveCart(cart);
 }
@@ -55,15 +55,61 @@ function clearCart() {
 }
 
 function cartTotal() {
-    return getCart().reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return getCart().reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
 }
 
 function updateCartBadge() {
     const badge = document.getElementById("cart-count");
     if (badge) {
-        const count = getCart().reduce((sum, item) => sum + item.quantity, 0);
+        const count = getCart().reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
         badge.textContent = count;
     }
 }
 
-document.addEventListener("DOMContentLoaded", updateCartBadge);
+async function syncCartWithServer() {
+    const cart = getCart();
+    if (cart.length === 0) return cart;
+
+    try {
+        const res = await fetch("/api/products");
+        if (res.ok) {
+            const products = await res.json();
+            const productMap = new Map();
+            products.forEach(p => productMap.set(p.id, p));
+
+            let changed = false;
+            const updatedCart = [];
+
+            for (const item of cart) {
+                const p = productMap.get(item.product_id);
+                if (p) {
+                    if (item.price !== p.price || item.name !== p.name) {
+                        changed = true;
+                    }
+                    updatedCart.push({
+                        product_id: p.id,
+                        name: p.name,
+                        price: Number(p.price),
+                        quantity: Number(item.quantity) || 1
+                    });
+                } else {
+                    // Stale or deleted product ID
+                    changed = true;
+                }
+            }
+
+            if (changed || updatedCart.length !== cart.length) {
+                saveCart(updatedCart);
+            }
+            return updatedCart;
+        }
+    } catch (e) {
+        console.warn("Could not sync cart with server:", e);
+    }
+    return cart;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    updateCartBadge();
+    syncCartWithServer();
+});

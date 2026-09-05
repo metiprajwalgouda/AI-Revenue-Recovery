@@ -1,0 +1,465 @@
+{% extends "base_merchant.html" %}
+{% block title %}Human Follow-ups & Priority Queue{% endblock %}
+{% block content %}
+<div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+    <div>
+        <h1 style="margin-bottom: 4px;">Human Follow-ups & Priority Escalations</h1>
+        <p style="color: #666; font-size: 14px; margin: 0;">Unified queue of escalated cases and pending coupon/discount approvals across all recovery scenarios.</p>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+        <div style="background: #f8f9fa; padding: 10px 15px; border-radius: 6px; border: 1px solid #ddd; font-size: 13px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" id="toggle-auto-email" style="margin-right: 8px;">
+                <strong>Auto-send recovery email immediately for new high-priority abandonments</strong>
+            </label>
+            <span id="toggle-status" style="margin-left: 10px; font-size: 12px; color: green;"></span>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 12px; color: #555; margin-right: 4px; font-weight: 600;">Scenario:</label>
+                <select id="scenario-filter" style="padding: 5px 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+                    <option value="all">All Scenarios</option>
+                    <option value="checkout_abandonment">Checkout Abandonment</option>
+                    <option value="payment_failure">Payment Failure</option>
+                    <option value="overdue_receivable">Overdue Receivable</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #555; margin-right: 4px; font-weight: 600;">Type:</label>
+                <select id="type-filter" style="padding: 5px 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+                    <option value="all">All Types</option>
+                    <option value="escalated_case">Escalated Cases</option>
+                    <option value="pending_approval">Pending Coupon Approvals</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #555; margin-right: 4px; font-weight: 600;">Status:</label>
+                <select id="status-filter" style="padding: 5px 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+                    <option value="all">All Statuses</option>
+                    <option value="pending_approval">Pending Approval</option>
+                    <option value="escalated">Escalated</option>
+                    <option value="intervening">Intervening</option>
+                    <option value="recovered">Recovered</option>
+                    <option value="lost">Lost</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 24px;">
+    <table class="merchant-product-table" style="min-width: 920px; width: 100%; border: none; border-radius: 0; margin-bottom: 0;">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Scenario</th>
+                <th>Type</th>
+                <th>Customer</th>
+                <th>Phone</th>
+                <th>Amount / Offer</th>
+                <th>Reason / Escalation</th>
+                <th style="text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody id="priority-table-body">
+            <tr><td colspan="8" style="text-align: center; padding: 24px; color: #888;">Loading priority follow-ups...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    let allPriorityOrders = [];
+
+    async function loadPriorityOrders() {
+        try {
+            const res = await fetch("/api/merchant/priority");
+            if (!res.ok) throw new Error("Failed to load priority queue");
+            allPriorityOrders = await res.json();
+            renderPriorityOrders();
+        } catch (e) {
+            document.getElementById("priority-table-body").innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:20px;">Error: ${e.message}</td></tr>`;
+        }
+    }
+
+    function renderPriorityOrders() {
+        const scenarioFilter = document.getElementById("scenario-filter").value;
+        const typeFilter = document.getElementById("type-filter").value;
+        const statusFilter = document.getElementById("status-filter").value;
+
+        const filtered = allPriorityOrders.filter(o => {
+            if (scenarioFilter !== "all" && (o.scenario || "").toLowerCase() !== scenarioFilter.toLowerCase()) {
+                return false;
+            }
+            if (typeFilter !== "all" && (o.item_type || "").toLowerCase() !== typeFilter.toLowerCase()) {
+                return false;
+            }
+            if (statusFilter !== "all" && (o.status || "").toLowerCase() !== statusFilter.toLowerCase()) {
+                return false;
+            }
+            return true;
+        });
+
+        const tbody = document.getElementById("priority-table-body");
+        tbody.innerHTML = "";
+        
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:#888;">No follow-ups or approvals matching filter.</td></tr>`;
+            return;
+        }
+
+        filtered.forEach(o => {
+            const tr = document.createElement("tr");
+            const dateStr = (o.created_at || o.started_at) ? new Date(o.created_at || o.started_at).toLocaleString() : "Unknown";
+            const scen = (o.scenario || "checkout_abandonment").toLowerCase();
+            const phone = o.customer_phone && o.customer_phone !== "N/A" ? o.customer_phone : null;
+            const targetId = o.target_id || (o.case_id ? `case_${o.case_id}` : `session_${o.id}`);
+            const sessParam = o.session_id ? o.session_id : 'null';
+            const caseParam = o.case_id ? o.case_id : 'null';
+            const isPendingApproval = (o.item_type === "pending_approval" || o.is_pending_approval === true);
+            const cartVal = Number(o.cart_value || o.amount_at_risk || 0);
+
+            let typeBadgeHtml = '';
+            let amountHtml = '';
+            let actionHtml = '';
+
+            if (isPendingApproval) {
+                typeBadgeHtml = `<span class="type-badge pending">⏳ Pending Approval</span>`;
+                let offerText = 'Discount Pending Approval';
+                const hasAmount = o.amount_offered && Number(o.amount_offered) > 0;
+                const hasCoupon = o.coupon_code && o.coupon_code.trim().length > 0;
+
+                if (hasAmount && hasCoupon) {
+                    offerText = `₹${Number(o.amount_offered).toFixed(2)} off (${escapeHtml(o.coupon_code)})`;
+                } else if (hasAmount) {
+                    offerText = `₹${Number(o.amount_offered).toFixed(2)} off`;
+                } else if (hasCoupon) {
+                    offerText = `Coupon: ${escapeHtml(o.coupon_code)}`;
+                }
+
+                const valueLabel = scen === "overdue_receivable" ? "Invoice" : "Cart";
+                amountHtml = `
+                    <div style="font-weight: 700; color: #b45309;">${offerText}</div>
+                    <div style="font-size: 11px; color: #666;">${valueLabel}: ₹${cartVal.toFixed(2)}</div>
+                `;
+                actionHtml = `
+                    <button class="primary-btn" id="appr-btn-${o.log_id}" style="padding: 6px 12px; font-size: 12px; background: #16a34a; margin-right: 4px;" onclick="approveAction(${o.log_id})">Approve</button>
+                    <button class="secondary-btn" id="rej-btn-${o.log_id}" style="padding: 6px 10px; font-size: 12px; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;" onclick="rejectAction(${o.log_id})">Reject</button>
+                    <div id="action-status-log-${o.log_id}" style="font-size: 11px; margin-top: 4px;"></div>
+                `;
+            } else {
+                typeBadgeHtml = `<span class="type-badge escalated">⚠️ Escalated Case</span>`;
+                amountHtml = `<div style="font-weight: 700;">₹${cartVal.toFixed(2)}</div>`;
+                actionHtml = `
+                    <button class="primary-btn" style="padding: 6px 10px; font-size: 12px; margin-right: 4px;" onclick="openManualRecovery(${sessParam}, '${escapeHtml(o.reason || 'unknown')}', ${caseParam})">Send Offer</button>
+                    ${phone ? `<button class="primary-btn" id="call-btn-${targetId}" style="padding: 6px 10px; font-size: 12px; background: #2563eb; margin-right: 4px;" onclick="callCustomer('${targetId}')">Call</button>` : ''}
+                    <button class="secondary-btn" style="padding: 6px 8px; font-size: 12px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; margin-right: 4px;" title="Mark Contacted" onclick="markContacted('${targetId}')">✓</button>
+                    <button class="secondary-btn" style="padding: 6px 10px; font-size: 12px; background: #dcfce7; color: #166534; border: 1px solid #86efac; margin-right: 4px;" title="Mark as Recovered" onclick="markRecovered('${targetId}', ${cartVal})">✓ Recovered</button>
+                    <button class="secondary-btn" style="padding: 6px 8px; font-size: 12px; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;" title="Mark as Lost" onclick="markLost('${targetId}')">✕ Lost</button>
+                    <div id="call-status-${targetId}" style="font-size: 11px; margin-top: 4px;"></div>
+                `;
+            }
+
+            tr.innerHTML = `
+                <td style="font-size: 13px; color: #555;">${dateStr}</td>
+                <td><span class="scenario-badge ${scen}">${formatScenario(scen)}</span></td>
+                <td>${typeBadgeHtml}</td>
+                <td>
+                    <div style="font-weight: 600;">${escapeHtml(o.customer_name || "Customer")}</div>
+                    <div style="font-size: 12px; color: #666;">${escapeHtml(o.customer_email || "N/A")}</div>
+                </td>
+                <td style="font-size: 13px;">${escapeHtml(phone || "N/A")}</td>
+                <td>${amountHtml}</td>
+                <td>
+                    <div style="font-size: 13px; font-weight: 600; color: #333;">${escapeHtml(formatReason(o.reason))}</div>
+                    ${o.escalation_reason && o.escalation_reason !== o.reason ? `<div style="font-size: 11px; color: #666;">${escapeHtml(o.escalation_reason)}</div>` : ''}
+                </td>
+                <td style="text-align: right; white-space: nowrap;">
+                    ${actionHtml}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function formatScenario(str) {
+        if (!str) return "Abandonment";
+        if (str === "payment_failure") return "Payment Failure";
+        if (str === "checkout_abandonment") return "Abandonment";
+        if (str === "overdue_receivable") return "Receivable";
+        return str.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function formatReason(str) {
+        if (!str) return "Unknown";
+        return str.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    async function approveAction(logId) {
+        const btn = document.getElementById(`appr-btn-${logId}`);
+        const statusSpan = document.getElementById(`action-status-log-${logId}`);
+        if (btn) btn.disabled = true;
+        if (statusSpan) {
+            statusSpan.innerText = "Approving...";
+            statusSpan.style.color = "#16a34a";
+        }
+
+        try {
+            const res = await fetch(`/api/merchant/recovery-actions/${logId}/approve`, { method: "POST" });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                if (statusSpan) statusSpan.innerText = "Approved & sent!";
+                setTimeout(() => loadPriorityOrders(), 1000);
+            } else {
+                if (statusSpan) {
+                    statusSpan.innerText = `Error: ${data.detail || "Failed"}`;
+                    statusSpan.style.color = "red";
+                }
+                if (btn) btn.disabled = false;
+            }
+        } catch (e) {
+            if (statusSpan) {
+                statusSpan.innerText = "Network error";
+                statusSpan.style.color = "red";
+            }
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function rejectAction(logId) {
+        const btn = document.getElementById(`rej-btn-${logId}`);
+        const statusSpan = document.getElementById(`action-status-log-${logId}`);
+        if (btn) btn.disabled = true;
+        if (statusSpan) {
+            statusSpan.innerText = "Rejecting...";
+            statusSpan.style.color = "#991b1b";
+        }
+
+        try {
+            const res = await fetch(`/api/merchant/recovery-actions/${logId}/reject`, { method: "POST" });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                if (statusSpan) statusSpan.innerText = "Rejected";
+                setTimeout(() => loadPriorityOrders(), 1000);
+            } else {
+                if (statusSpan) {
+                    statusSpan.innerText = `Error: ${data.detail || "Failed"}`;
+                    statusSpan.style.color = "red";
+                }
+                if (btn) btn.disabled = false;
+            }
+        } catch (e) {
+            if (statusSpan) {
+                statusSpan.innerText = "Network error";
+                statusSpan.style.color = "red";
+            }
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function markRecovered(targetId, defaultAmount) {
+        const amountStr = prompt("Enter confirmed amount recovered (₹):", defaultAmount || 0);
+        if (amountStr === null) return; // cancelled prompt
+        const amount = parseFloat(amountStr);
+        if (isNaN(amount) || amount < 0) {
+            alert("Please enter a valid non-negative amount.");
+            return;
+        }
+
+        const note = prompt("Optional note (e.g. customer paid via offline link / bank transfer):", "Merchant confirmed payment received");
+
+        const res = await fetch(`/api/merchant/priority/${targetId}/recovered`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ amount_recovered: amount, reason: note || "Merchant marked case as recovered" })
+        });
+
+        if (res.ok) {
+            loadPriorityOrders();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert(`Failed to mark as recovered: ${err.detail || "Server error"}`);
+        }
+    }
+
+    async function markLost(targetId) {
+        const note = prompt("Optional note explaining why this case is marked as lost:", "Customer unreachable / declined purchase");
+        if (note === null) return; // cancelled prompt
+        
+        const res = await fetch(`/api/merchant/priority/${targetId}/lost`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: note || "Merchant marked case as lost" })
+        });
+        
+        if (res.ok) {
+            loadPriorityOrders();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert(`Failed to mark as lost: ${err.detail || "Server error"}`);
+        }
+    }
+
+    async function markContacted(targetId) {
+        if (!confirm("Mark this priority case as contacted?")) return;
+        
+        const res = await fetch(`/api/merchant/priority/${targetId}/contact`, {
+            method: "POST"
+        });
+        
+        if (res.ok) {
+            loadPriorityOrders();
+        } else {
+            alert("Failed to mark as contacted");
+        }
+    }
+
+    async function callCustomer(targetId) {
+        const btn = document.getElementById(`call-btn-${targetId}`);
+        const statusSpan = document.getElementById(`call-status-${targetId}`);
+        
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "Calling...";
+        }
+        if (statusSpan) {
+            statusSpan.innerText = "";
+            statusSpan.style.color = "black";
+        }
+
+        try {
+            const res = await fetch(`/api/merchant/priority/${targetId}/call`, { method: "POST" });
+            const data = await res.json();
+            
+            if (res.ok) {
+                if (data.status === "skipped_no_key") {
+                    if (statusSpan) {
+                        statusSpan.innerText = "Skipped (No Twilio Key)";
+                        statusSpan.style.color = "#856404";
+                    }
+                } else if (data.status === "failed") {
+                    if (statusSpan) {
+                        statusSpan.innerText = `Failed: ${data.error || "Error"}`;
+                        statusSpan.style.color = "red";
+                    }
+                } else {
+                    if (statusSpan) {
+                        statusSpan.innerText = "Call placed!";
+                        statusSpan.style.color = "green";
+                    }
+                }
+            } else {
+                if (statusSpan) {
+                    statusSpan.innerText = `Error: ${data.detail || "Server error"}`;
+                    statusSpan.style.color = "red";
+                }
+            }
+        } catch (e) {
+            if (statusSpan) {
+                statusSpan.innerText = "Network error";
+                statusSpan.style.color = "red";
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "Call";
+            }
+        }
+    }
+
+    let currentSettings = null;
+
+    async function loadToggle() {
+        try {
+            const res = await fetch("/api/merchant/settings");
+            if (res.ok) {
+                currentSettings = await res.json();
+                document.getElementById("toggle-auto-email").checked = currentSettings.auto_email_high_priority || false;
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    document.getElementById("toggle-auto-email").addEventListener("change", async (e) => {
+        if (!currentSettings) return;
+        const statusSpan = document.getElementById("toggle-status");
+        statusSpan.innerText = "Saving...";
+        
+        currentSettings.auto_email_high_priority = e.target.checked;
+        try {
+            const res = await fetch("/api/merchant/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(currentSettings)
+            });
+            if (res.ok) {
+                statusSpan.innerText = "Saved!";
+                setTimeout(() => statusSpan.innerText = "", 2000);
+            } else {
+                statusSpan.innerText = "Error saving";
+                statusSpan.style.color = "red";
+            }
+        } catch (err) {
+            statusSpan.innerText = "Network error";
+            statusSpan.style.color = "red";
+        }
+    });
+
+    document.getElementById("scenario-filter").addEventListener("change", renderPriorityOrders);
+    document.getElementById("type-filter").addEventListener("change", renderPriorityOrders);
+    document.getElementById("status-filter").addEventListener("change", renderPriorityOrders);
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadPriorityOrders();
+        loadToggle();
+    });
+</script>
+
+<style>
+.scenario-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.scenario-badge.payment_failure {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+.scenario-badge.checkout_abandonment {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+.scenario-badge.overdue_receivable {
+    background-color: #ede9fe;
+    color: #5b21b6;
+}
+
+.type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.type-badge.pending {
+    background-color: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+.type-badge.escalated {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+</style>
+{% endblock %}

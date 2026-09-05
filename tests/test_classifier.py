@@ -144,8 +144,9 @@ def test_llm_classify_handles_malformed_json_response():
     assert result.confidence == 0.0
 
 
-def test_llm_classify_handles_markdown_wrapped_json():
+def test_llm_classify_handles_markdown_wrapped_json(monkeypatch):
     """Edge case: LLM wraps valid JSON in markdown fences despite instructions not to."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     event = make_event()
     mock_client = MagicMock()
     mock_response = MagicMock()
@@ -178,7 +179,8 @@ def test_classify_uses_rule_when_available_skips_llm_entirely():
     mock_client.messages.create.assert_not_called()
 
 
-def test_classify_falls_back_to_llm_when_no_rule_matches():
+def test_classify_falls_back_to_llm_when_no_rule_matches(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     event = make_event(notes="ambiguous case", payment_status_code=None, otp_requested=False,
                         page_load_time_ms=900, cart_value=1200, time_on_checkout_page_sec=90)
     mock_client = MagicMock()
@@ -189,6 +191,63 @@ def test_classify_falls_back_to_llm_when_no_rule_matches():
     result = classify(event, llm_client=mock_client)
     assert result.method_used == "llm"
     mock_client.messages.create.assert_called_once()
+
+
+# ---------- Fallback tests ----------
+
+def test_gemini_429_falls_back_to_claude(monkeypatch):
+    """When Gemini returns 429 quota exhausted, classifier must fallback to Claude and return real classification."""
+    monkeypatch.setenv("GEMINI_API_KEY", "test_gemini_key")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test_anthropic_key")
+
+    event = make_event(cart_value=15000, time_on_checkout_page_sec=120)
+
+    mock_genai = MagicMock()
+    mock_model = MagicMock()
+    mock_model.generate_content.side_effect = Exception("429 ResourceExhausted: Quota exceeded for model gemini-3.6-flash")
+    mock_genai.GenerativeModel.return_value = mock_model
+    monkeypatch.setattr("google.generativeai.GenerativeModel", mock_genai.GenerativeModel)
+    monkeypatch.setattr("google.generativeai.configure", mock_genai.configure)
+
+    mock_anthropic_module = MagicMock()
+    mock_anthropic_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text='{"predicted_reason": "high_amount_hesitation", "confidence": 0.85, "reasoning": "High price hesitation on 15k cart."}')]
+    mock_anthropic_client.messages.create.return_value = mock_response
+    mock_anthropic_module.Anthropic.return_value = mock_anthropic_client
+    monkeypatch.setattr("anthropic.Anthropic", mock_anthropic_module.Anthropic)
+
+    result = llm_classify(event)
+    assert result.predicted_reason == AbandonmentReason.HIGH_AMOUNT_HESITATION
+    assert result.confidence == 0.85
+    assert result.method_used == "llm_claude_fallback"
+    assert "High price hesitation" in result.reasoning
+    assert mock_anthropic_client.messages.create.called
+
+
+def test_both_gemini_and_claude_failing_returns_unknown_gracefully(monkeypatch):
+    """When both Gemini and Claude fail, classifier must return unknown without crashing."""
+    monkeypatch.setenv("GEMINI_API_KEY", "test_gemini_key")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test_anthropic_key")
+
+    event = make_event(cart_value=15000, time_on_checkout_page_sec=120)
+
+    mock_genai = MagicMock()
+    mock_model = MagicMock()
+    mock_model.generate_content.side_effect = Exception("429 ResourceExhausted")
+    monkeypatch.setattr("google.generativeai.GenerativeModel", mock_genai.GenerativeModel)
+    mock_genai.GenerativeModel.return_value = mock_model
+
+    mock_anthropic_module = MagicMock()
+    mock_anthropic_client = MagicMock()
+    mock_anthropic_client.messages.create.side_effect = Exception("Claude 500 server error")
+    mock_anthropic_module.Anthropic.return_value = mock_anthropic_client
+    monkeypatch.setattr("anthropic.Anthropic", mock_anthropic_module.Anthropic)
+
+    result = llm_classify(event)
+    assert result.predicted_reason == AbandonmentReason.UNKNOWN
+    assert result.confidence == 0.0
+    assert result.method_used == "llm"
 
 
 # ---------- REAL API integration test (run manually, needs real key) ----------
@@ -209,7 +268,7 @@ def test_real_llm_call_on_ambiguous_event():
         time_on_checkout_page_sec=240,
     )
     result = llm_classify(event)
-    assert result.method_used == "llm"
+    assert result.method_used in ("llm", "llm_gemini", "llm_claude", "llm_claude_fallback")
     assert result.predicted_reason in list(AbandonmentReason)
     print(f"\nReal LLM classification: {result.predicted_reason.value} "
           f"(confidence={result.confidence}) -- {result.reasoning}")

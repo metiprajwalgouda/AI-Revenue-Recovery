@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block content %}
+<style>
+    .profile-wrap {
+        max-width: 680px;
+        margin: 20px auto;
+        padding: 0 16px;
+    }
+    .profile-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        padding: 28px;
+        margin-bottom: 20px;
+    }
+    .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding-bottom: 20px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .avatar-circle {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: #111827;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+    .user-info h2 {
+        font-size: 20px;
+        font-weight: 800;
+        color: #111827;
+        margin: 0 0 4px 0;
+    }
+    .user-info p {
+        font-size: 13px;
+        color: #6b7280;
+        margin: 0;
+    }
+    .form-group {
+        margin-bottom: 18px;
+    }
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 6px;
+    }
+    .form-group .hint {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 4px;
+    }
+    .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #1f2937;
+        background: #ffffff;
+        box-sizing: border-box;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .opt-box {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 20px 0;
+    }
+    .opt-label {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        cursor: pointer;
+        font-size: 13px;
+        color: #374151;
+    }
+    .opt-label input[type="checkbox"] {
+        margin-top: 3px;
+        width: 16px;
+        height: 16px;
+    }
+    .primary-save-btn {
+        background: #111827;
+        color: #ffffff;
+        border: none;
+        padding: 11px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    .primary-save-btn:hover {
+        background: #1f2937;
+    }
+    .primary-save-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+    .quick-nav-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .quick-nav-link {
+        font-size: 13px;
+        font-weight: 600;
+        color: #2563eb;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .quick-nav-link:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="profile-wrap">
+    <div class="profile-card">
+        <div class="profile-header">
+            <div class="avatar-circle" id="user-avatar">
+                👤
+            </div>
+            <div class="user-info">
+                <h2 id="display-name">My Account</h2>
+                <p id="display-email">Manage your personal information and preferences</p>
+            </div>
+        </div>
+
+        <form id="customer-profile-form">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" class="form-control" placeholder="Your name">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" class="form-control" placeholder="name@example.com">
+                <div class="hint">Used for order confirmations and cart recovery receipts.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Mobile Phone (10 digits)</label>
+                <input type="text" id="phone" class="form-control" placeholder="+91 9876543210">
+                <div class="hint">Required for instant SMS recovery links and delivery updates.</div>
+            </div>
+
+            <div class="opt-box">
+                <label class="opt-label">
+                    <input type="checkbox" id="opted_out_of_marketing">
+                    <div>
+                        <strong>Opt out of marketing & automated cart reminders</strong>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
+                            If checked, you will not receive automated email/SMS reminders or discount offers if you abandon checkout.
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+                <div id="profile-msg" style="font-size: 14px; font-weight: 600;"></div>
+                <button type="submit" class="primary-save-btn">Save Profile</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="quick-nav-card">
+        <div>
+            <span style="font-size: 13px; font-weight: 600; color: #374151;">Need to track an order?</span>
+        </div>
+        <div style="display: flex; gap: 16px;">
+            <a href="/account/orders" class="quick-nav-link">📦 View My Orders →</a>
+            <a href="/cart" class="quick-nav-link">🛒 View Cart →</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateAvatarInitials(name, email) {
+        const avatar = document.getElementById("user-avatar");
+        const displayName = document.getElementById("display-name");
+        const displayEmail = document.getElementById("display-email");
+
+        if (name && name.trim()) {
+            const parts = name.trim().split(" ");
+            let initials = parts[0][0];
+            if (parts.length > 1) initials += parts[parts.length - 1][0];
+            avatar.textContent = initials.toUpperCase();
+            displayName.textContent = name;
+        } else if (email && email.trim()) {
+            avatar.textContent = email[0].toUpperCase();
+            displayName.textContent = email;
+        } else {
+            avatar.textContent = "👤";
+            displayName.textContent = "My Account";
+        }
+        if (email) displayEmail.textContent = email;
+    }
+
+    async function loadProfile() {
+        try {
+            const res = await fetch("/api/customer/profile");
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById("name").value = data.name || "";
+                document.getElementById("email").value = data.email || "";
+                document.getElementById("phone").value = data.phone || "";
+                document.getElementById("opted_out_of_marketing").checked = data.opted_out_of_marketing || false;
+                updateAvatarInitials(data.name, data.email);
+            }
+        } catch(e) {
+            console.error("Failed to load customer profile", e);
+        }
+    }
+    
+    document.getElementById("customer-profile-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const nameVal = document.getElementById("name").value;
+        const emailVal = document.getElementById("email").value;
+        const phoneVal = document.getElementById("phone").value;
+        const optedOut = document.getElementById("opted_out_of_marketing").checked;
+
+        const btn = document.querySelector("#customer-profile-form button[type='submit']");
+        const msg = document.getElementById("profile-msg");
+        btn.disabled = true;
+        btn.textContent = "Saving...";
+        msg.textContent = "";
+
+        const payload = {
+            name: nameVal,
+            email: emailVal,
+            phone: phoneVal,
+            opted_out_of_marketing: optedOut,
+        };
+
+        try {
+            const res = await fetch("/api/customer/profile", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                msg.textContent = "✅ Profile saved successfully!";
+                msg.style.color = "#16a34a";
+                updateAvatarInitials(nameVal, emailVal);
+                setTimeout(() => { msg.textContent = ""; }, 4000);
+            } else {
+                const err = await res.json();
+                msg.textContent = "❌ " + (err.detail || "Failed to save profile.");
+                msg.style.color = "#dc2626";
+            }
+        } catch(err) {
+            msg.textContent = "❌ Network error saving profile.";
+            msg.style.color = "#dc2626";
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Save Profile";
+        }
+    });
+
+    document.getElementById("name").addEventListener("input", (e) => {
+        updateAvatarInitials(e.target.value, document.getElementById("email").value);
+    });
+
+    document.addEventListener("DOMContentLoaded", loadProfile);
+</script>
+{% endblock %}

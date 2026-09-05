@@ -1,0 +1,47 @@
+{% extends "base_merchant.html" %}
+{% block title %}Merchant - Broadcasts{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>In-App Broadcast Notifications</h2>
+    <p>Send a real-time notification popup directly to all customers who are currently online.</p>
+    <div class="form-group">
+        <label>Notification Title</label>
+        <input type="text" id="broadcast-title" placeholder="e.g. Flash Sale! ?">
+    </div>
+    <div class="form-group">
+        <label>Message</label>
+        <textarea id="broadcast-message" rows="2" placeholder="e.g. Use code SUMMER20 for 20% off all orders today!"></textarea>
+    </div>
+    <div class="form-group">
+        <label>Action URL (Optional)</label>
+        <input type="text" id="broadcast-url" placeholder="e.g. /cart">
+    </div>
+    <button class="primary-btn" onclick="sendBroadcast()" style="background-color: #e91e63;">? Send Broadcast</button>
+</div>
+
+<script>
+    async function sendBroadcast() {
+        const payload = {
+            title: document.getElementById("broadcast-title").value,
+            message: document.getElementById("broadcast-message").value,
+            action_url: document.getElementById("broadcast-url").value || null
+        };
+        if(!payload.title || !payload.message) return alert("Title and Message are required");
+        
+        const res = await fetch("/api/merchant/in-app-broadcast", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        });
+        if(res.ok) {
+            const data = await res.json();
+            alert(`Broadcast sent successfully to ${data.sent_count} customers!`);
+            document.getElementById("broadcast-title").value = "";
+            document.getElementById("broadcast-message").value = "";
+            document.getElementById("broadcast-url").value = "";
+        } else {
+            alert("Failed to send broadcast");
+        }
+    }
+</script>
+{% endblock %}

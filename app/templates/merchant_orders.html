@@ -1,6 +1,785 @@
 {% extends "base_merchant.html" %}
-{% block title %}Orders{% endblock %}
+{% block title %}Orders & Checkout Sessions{% endblock %}
 {% block content %}
-<h1>Orders</h1>
-<p>Coming soon: filterable list of completed and abandoned orders.</p>
+<style>
+    .merchant-orders-wrapper {
+        padding: 0 0 32px 0;
+    }
+    .page-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .page-title-group h1 {
+        margin: 0 0 4px 0;
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #111827;
+        letter-spacing: -0.4px;
+    }
+    .page-title-group p {
+        margin: 0;
+        color: #6b7280;
+        font-size: 0.92rem;
+    }
+    .header-refresh-btn {
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        color: #374151;
+        padding: 8px 16px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .header-refresh-btn:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+        color: #111827;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+        width: 100%;
+    }
+    .kpi-stat-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 16px 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: box-shadow 0.15s ease;
+        min-width: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+    .kpi-stat-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    .kpi-stat-content {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+    }
+    .kpi-stat-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    .kpi-stat-value {
+        font-size: clamp(1.2rem, 1.5vw, 1.55rem);
+        font-weight: 800;
+        color: #111827;
+        line-height: 1.25;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+    .kpi-stat-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        margin-left: 10px;
+    }
+    .icon-blue { background: #eff6ff; color: #2563eb; }
+    .icon-green { background: #f0fdf4; color: #16a34a; }
+    .icon-red { background: #fef2f2; color: #dc2626; }
+    .icon-purple { background: #f5f3ff; color: #7c3aed; }
+
+    /* Filter Bar */
+    .controls-bar {
+        background: #ffffff;
+        padding: 12px 18px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .controls-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .controls-label {
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: #374151;
+    }
+    .controls-select {
+        padding: 8px 14px;
+        font-size: 0.88rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #1f2937;
+        outline: none;
+        cursor: pointer;
+    }
+    .controls-select:focus {
+        border-color: #111827;
+    }
+    .search-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .search-input-wrap input {
+        padding: 8px 14px 8px 34px;
+        font-size: 0.88rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        width: 280px;
+        outline: none;
+        transition: border-color 0.15s ease;
+    }
+    .search-input-wrap input:focus {
+        border-color: #111827;
+        box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+    }
+    .search-icon-inside {
+        position: absolute;
+        left: 10px;
+        font-size: 13px;
+        color: #9ca3af;
+        pointer-events: none;
+    }
+
+    /* Orders Table Card */
+    .table-card {
+        background: #ffffff;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+    .orders-table th {
+        background: #f9fafb;
+        padding: 12px 18px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .orders-table td {
+        padding: 14px 18px;
+        font-size: 0.88rem;
+        color: #374151;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+    }
+    .orders-table tr:last-child td {
+        border-bottom: none;
+    }
+    .order-row {
+        cursor: pointer;
+        transition: background-color 0.12s ease;
+    }
+    .order-row:hover {
+        background-color: #f8fafc;
+    }
+
+    .order-code {
+        font-family: monospace;
+        font-weight: 700;
+        color: #111827;
+        background: #f3f4f6;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 0.82rem;
+    }
+    .customer-cell-name {
+        font-weight: 600;
+        color: #111827;
+    }
+    .customer-cell-email {
+        font-size: 0.78rem;
+        color: #6b7280;
+        margin-top: 2px;
+    }
+    .items-preview-text {
+        color: #374151;
+    }
+    .items-count-badge {
+        color: #9ca3af;
+        font-size: 0.78rem;
+        margin-left: 4px;
+    }
+    .amount-cell {
+        font-weight: 700;
+        color: #111827;
+        text-align: right;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .action-btn-sm {
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        color: #374151;
+        padding: 5px 12px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .action-btn-sm:hover {
+        background: #f3f4f6;
+        border-color: #9ca3af;
+        color: #111827;
+    }
+
+    /* Modal Styling */
+    .modal-card-box {
+        background: white;
+        max-width: 680px;
+        margin: 4% auto;
+        padding: 26px 30px;
+        border-radius: 12px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        position: relative;
+        max-height: 88vh;
+        overflow-y: auto;
+    }
+</style>
+
+<div class="merchant-orders-wrapper">
+    <!-- Header Row -->
+    <div class="page-header-row">
+        <div class="page-title-group">
+            <h1>Orders & Checkout Sessions</h1>
+            <p>Real-time feed of all customer checkout sessions, completed payments, and recovery audit trails.</p>
+        </div>
+        <button onclick="loadOrders()" class="header-refresh-btn">
+            🔄 Refresh Orders
+        </button>
+    </div>
+
+    <!-- KPI Metric Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-stat-card">
+            <div class="kpi-stat-content">
+                <div class="kpi-stat-label">Total Orders</div>
+                <div class="kpi-stat-value" id="stat-total-orders">0</div>
+            </div>
+            <div class="kpi-stat-icon icon-blue">📦</div>
+        </div>
+        <div class="kpi-stat-card">
+            <div class="kpi-stat-content">
+                <div class="kpi-stat-label">Completed Revenue</div>
+                <div class="kpi-stat-value" id="stat-completed-revenue" style="color: #15803d;">₹0.00</div>
+            </div>
+            <div class="kpi-stat-icon icon-green">💰</div>
+        </div>
+        <div class="kpi-stat-card">
+            <div class="kpi-stat-content">
+                <div class="kpi-stat-label">Abandoned / Incomplete</div>
+                <div class="kpi-stat-value" id="stat-abandoned-orders" style="color: #b91c1c;">0</div>
+            </div>
+            <div class="kpi-stat-icon icon-red">⏳</div>
+        </div>
+        <div class="kpi-stat-card">
+            <div class="kpi-stat-content">
+                <div class="kpi-stat-label">Average Order Value</div>
+                <div class="kpi-stat-value" id="stat-aov" style="color: #6d28d9;">₹0.00</div>
+            </div>
+            <div class="kpi-stat-icon icon-purple">📈</div>
+        </div>
+    </div>
+
+    <!-- Controls / Search & Filters -->
+    <div class="controls-bar">
+        <div class="controls-left">
+            <label class="controls-label">Status:</label>
+            <select id="status-filter" onchange="renderOrders()" class="controls-select">
+                <option value="all">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="started">Started / Active</option>
+                <option value="abandoned">Abandoned</option>
+            </select>
+
+            <label class="controls-label" style="margin-left: 6px;">Date Filter:</label>
+            <select id="date-preset-filter" onchange="handleDatePresetChange()" class="controls-select">
+                <option value="all">All Dates</option>
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="last7">Last 7 Days</option>
+                <option value="last30">Last 30 Days</option>
+                <option value="thisMonth">This Month</option>
+                <option value="custom">Custom Range...</option>
+            </select>
+
+            <div id="custom-date-inputs" style="display: none; align-items: center; gap: 6px;">
+                <input type="date" id="date-from" onchange="renderOrders()" class="controls-select" style="padding: 6px 10px; font-size: 0.82rem;">
+                <span style="color: #6b7280; font-size: 0.82rem;">to</span>
+                <input type="date" id="date-to" onchange="renderOrders()" class="controls-select" style="padding: 6px 10px; font-size: 0.82rem;">
+            </div>
+
+            <button type="button" id="btn-clear-date-filter" onclick="resetDateFilter()" style="display: none; background: #f3f4f6; border: 1px solid #d1d5db; color: #4b5563; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">✕ Reset Date</button>
+        </div>
+        <div class="search-input-wrap">
+            <span class="search-icon-inside">🔍</span>
+            <input type="text" id="order-search" onkeyup="renderOrders()" placeholder="Search customer, email, event...">
+        </div>
+    </div>
+
+    <!-- Active Filter Summary -->
+    <div id="filter-active-summary" style="margin-top: -12px; margin-bottom: 16px; font-size: 0.82rem; color: #6b7280; display: flex; align-items: center; justify-content: space-between;">
+        <span id="filter-count-badge">Loading orders & checkout sessions...</span>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="table-card" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+        <table class="orders-table" style="min-width: 960px; width: 100%;">
+            <thead>
+                <tr>
+                    <th style="min-width: 170px;">Order / Event</th>
+                    <th style="min-width: 130px;">Date & Time</th>
+                    <th style="min-width: 200px;">Customer</th>
+                    <th style="min-width: 180px;">Items</th>
+                    <th style="min-width: 110px; text-align: right;">Amount</th>
+                    <th style="min-width: 130px; text-align: center;">Status</th>
+                    <th style="min-width: 80px; text-align: center;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="orders-table-body">
+                <tr><td colspan="7" style="text-align: center; padding: 40px; color: #888;">Loading orders...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Order Detail & Recovery Audit Modal -->
+<div id="order-modal" class="modal" style="display:none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(2px);">
+    <div class="modal-card-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 14px; margin-bottom: 18px;">
+            <div>
+                <h2 id="modal-order-title" style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 800; color: #111827;">Order Details</h2>
+                <span id="modal-order-timestamp" style="font-size: 0.82rem; color: #6b7280;">—</span>
+            </div>
+            <button onclick="closeOrderModal()" style="background: none; border: none; font-size: 24px; color: #9ca3af; cursor: pointer; line-height: 1; padding: 4px;">&times;</button>
+        </div>
+
+        <div id="order-details-content">
+            <!-- Dynamically populated -->
+        </div>
+
+        <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button onclick="closeOrderModal()" class="secondary-btn" style="padding: 9px 20px; font-size: 0.88rem; font-weight: 600; cursor: pointer;">Close</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allOrders = [];
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function getOrderStatusBadge(status) {
+        const s = (status || "").toLowerCase();
+        if (s === "completed") {
+            return '<span class="status-badge" style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;">✓ Completed</span>';
+        } else if (s === "abandoned") {
+            return '<span class="status-badge" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;">✗ Abandoned</span>';
+        } else if (s === "started") {
+            return '<span class="status-badge" style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe;">⏳ In Progress</span>';
+        } else {
+            return `<span class="status-badge" style="background:#f3f4f6; color:#374151; border:1px solid #e5e7eb;">${escapeHtml(status)}</span>`;
+        }
+    }
+
+    function formatDateForInput(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function handleDatePresetChange() {
+        const preset = document.getElementById("date-preset-filter").value;
+        const customDiv = document.getElementById("custom-date-inputs");
+        const clearBtn = document.getElementById("btn-clear-date-filter");
+        const fromInput = document.getElementById("date-from");
+        const toInput = document.getElementById("date-to");
+
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (preset === "all") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "none";
+            fromInput.value = "";
+            toInput.value = "";
+        } else if (preset === "today") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            fromInput.value = formatDateForInput(startOfToday);
+            toInput.value = formatDateForInput(now);
+        } else if (preset === "yesterday") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            const yesterday = new Date(startOfToday);
+            yesterday.setDate(yesterday.getDate() - 1);
+            fromInput.value = formatDateForInput(yesterday);
+            toInput.value = formatDateForInput(yesterday);
+        } else if (preset === "last7") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            const sevenDaysAgo = new Date(startOfToday);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+            fromInput.value = formatDateForInput(sevenDaysAgo);
+            toInput.value = formatDateForInput(now);
+        } else if (preset === "last30") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            const thirtyDaysAgo = new Date(startOfToday);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+            fromInput.value = formatDateForInput(thirtyDaysAgo);
+            toInput.value = formatDateForInput(now);
+        } else if (preset === "thisMonth") {
+            customDiv.style.display = "none";
+            clearBtn.style.display = "inline-flex";
+            const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            fromInput.value = formatDateForInput(firstOfMonth);
+            toInput.value = formatDateForInput(now);
+        } else if (preset === "custom") {
+            customDiv.style.display = "inline-flex";
+            clearBtn.style.display = "inline-flex";
+        }
+
+        renderOrders();
+    }
+
+    function resetDateFilter() {
+        document.getElementById("date-preset-filter").value = "all";
+        document.getElementById("custom-date-inputs").style.display = "none";
+        document.getElementById("btn-clear-date-filter").style.display = "none";
+        document.getElementById("date-from").value = "";
+        document.getElementById("date-to").value = "";
+        renderOrders();
+    }
+
+    function getOrderDate(o) {
+        const raw = o.started_at || o.created_at || o.abandoned_at || o.completed_at;
+        if (!raw) return null;
+        const d = new Date(raw);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    async function loadOrders() {
+        try {
+            const res = await fetch("/api/merchant/orders");
+            if (!res.ok) throw new Error("Failed to load orders");
+            allOrders = await res.json();
+            renderOrders();
+        } catch (e) {
+            document.getElementById("orders-table-body").innerHTML = `<tr><td colspan="7" style="color:#b91c1c; text-align:center; padding:30px;">${escapeHtml(e.message)}</td></tr>`;
+        }
+    }
+
+    function updateOrderStats(ordersList) {
+        const list = Array.isArray(ordersList) ? ordersList : allOrders;
+        const total = list.length;
+        const completed = list.filter(o => o.status === "completed");
+        const abandoned = list.filter(o => o.status === "abandoned");
+        
+        const completedRev = completed.reduce((sum, o) => sum + (o.final_amount_charged || o.cart_value || 0), 0);
+        const aov = completed.length > 0 ? (completedRev / completed.length) : 0;
+
+        document.getElementById("stat-total-orders").innerText = total;
+        document.getElementById("stat-completed-revenue").innerText = "₹" + completedRev.toFixed(2);
+        document.getElementById("stat-abandoned-orders").innerText = abandoned.length;
+        document.getElementById("stat-aov").innerText = "₹" + aov.toFixed(2);
+    }
+
+    function renderOrders() {
+        const filter = document.getElementById("status-filter").value;
+        const search = document.getElementById("order-search").value.toLowerCase().trim();
+        const fromVal = document.getElementById("date-from").value;
+        const toVal = document.getElementById("date-to").value;
+
+        let fromDate = null;
+        let toDate = null;
+        if (fromVal) {
+            fromDate = new Date(fromVal + "T00:00:00");
+        }
+        if (toVal) {
+            toDate = new Date(toVal + "T23:59:59.999");
+        }
+
+        let filtered = allOrders.filter(o => {
+            // Date filtering
+            if (fromDate || toDate) {
+                const od = getOrderDate(o);
+                if (!od) return false;
+                if (fromDate && od < fromDate) return false;
+                if (toDate && od > toDate) return false;
+            }
+
+            // Status filtering
+            if (filter !== "all" && o.status !== filter) return false;
+
+            // Search query
+            if (search) {
+                const name = (o.customer_name || "").toLowerCase();
+                const email = (o.customer_email || "").toLowerCase();
+                const evt = (o.event_id || "").toLowerCase();
+                if (!name.includes(search) && !email.includes(search) && !evt.includes(search)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        // Recalculate KPIs for the filtered dataset
+        updateOrderStats(filtered);
+
+        // Update count badge
+        const countBadge = document.getElementById("filter-count-badge");
+        if (countBadge) {
+            if (filtered.length === allOrders.length) {
+                countBadge.textContent = `Showing all ${allOrders.length} orders & checkout sessions`;
+            } else {
+                let filterInfo = [];
+                if (filter !== "all") filterInfo.push(`Status: ${filter}`);
+                if (fromVal && toVal) filterInfo.push(`Dates: ${fromVal} to ${toVal}`);
+                else if (fromVal) filterInfo.push(`From: ${fromVal}`);
+                else if (toVal) filterInfo.push(`To: ${toVal}`);
+                if (search) filterInfo.push(`Search: "${search}"`);
+
+                countBadge.innerHTML = `Showing <strong>${filtered.length}</strong> of ${allOrders.length} records (${filterInfo.join(" • ")})`;
+            }
+        }
+
+        const tbody = document.getElementById("orders-table-body");
+        tbody.innerHTML = "";
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:36px; color:#6b7280; font-size:0.9rem;">No orders or checkout sessions match the selected date & filter criteria.</td></tr>`;
+            return;
+        }
+
+        filtered.forEach(o => {
+            const tr = document.createElement("tr");
+            tr.className = "order-row";
+            tr.onclick = () => showOrderDetails(o);
+            
+            const dateStr = o.started_at ? new Date(o.started_at).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : "Unknown";
+            
+            // Parse item preview
+            let itemsCount = 0;
+            let itemsPreview = "0 items";
+            try {
+                if (o.cart_json) {
+                    const parsed = JSON.parse(o.cart_json);
+                    if (Array.isArray(parsed)) {
+                        itemsCount = parsed.reduce((sum, i) => sum + (i.quantity || 1), 0);
+                        if (parsed.length > 0) {
+                            itemsPreview = `${parsed[0].name || 'Item'}${parsed.length > 1 ? ` +${parsed.length - 1} more` : ''}`;
+                        }
+                    }
+                }
+            } catch(e) {}
+
+            let recoveryBadge = "";
+            if (o.recovery_case_id) {
+                recoveryBadge = `<span style="font-size:0.7rem; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; padding:2px 6px; border-radius:4px; margin-left:6px; font-weight:600;">Case #${o.recovery_case_id}</span>`;
+            }
+
+            tr.innerHTML = `
+                <td>
+                    <span class="order-code">${escapeHtml(o.event_id)}</span>
+                    ${recoveryBadge}
+                </td>
+                <td style="font-size: 0.85rem; color: #4b5563;">${dateStr}</td>
+                <td>
+                    <div class="customer-cell-name">${escapeHtml(o.customer_name || 'Guest Customer')}</div>
+                    <div class="customer-cell-email">${escapeHtml(o.customer_email || 'No email')}</div>
+                </td>
+                <td style="font-size: 0.85rem;">
+                    <span class="items-preview-text">${escapeHtml(itemsPreview)}</span>
+                    <span class="items-count-badge">(${itemsCount} pcs)</span>
+                </td>
+                <td class="amount-cell">
+                    ₹${(o.final_amount_charged || o.cart_value || 0).toFixed(2)}
+                </td>
+                <td style="text-align: center;">
+                    ${getOrderStatusBadge(o.status)}
+                </td>
+                <td style="text-align: center;">
+                    <button class="action-btn-sm" onclick="event.stopPropagation(); showOrderDetails(allOrders.find(x => x.id === ${o.id}) || {});">View 🔍</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function showOrderDetails(o) {
+        document.getElementById("modal-order-title").innerText = `Order: ${o.event_id || ('#' + o.id)}`;
+        document.getElementById("modal-order-timestamp").innerText = o.started_at ? new Date(o.started_at).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date Unknown';
+        
+        let itemsHtml = "";
+        let rawItems = [];
+        try {
+            if (o.cart_json) {
+                rawItems = JSON.parse(o.cart_json);
+            }
+        } catch(e) {}
+
+        if (Array.isArray(rawItems) && rawItems.length > 0) {
+            itemsHtml = `
+                <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-top: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                            <tr>
+                                <th style="padding: 10px 14px; text-align: left; font-weight: 700; color: #6b7280; font-size: 0.75rem; text-transform: uppercase;">Item</th>
+                                <th style="padding: 10px 14px; text-align: center; font-weight: 700; color: #6b7280; font-size: 0.75rem; text-transform: uppercase;">Qty</th>
+                                <th style="padding: 10px 14px; text-align: right; font-weight: 700; color: #6b7280; font-size: 0.75rem; text-transform: uppercase;">Unit Price</th>
+                                <th style="padding: 10px 14px; text-align: right; font-weight: 700; color: #6b7280; font-size: 0.75rem; text-transform: uppercase;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rawItems.map(i => `
+                                <tr style="border-bottom: 1px solid #f3f4f6;">
+                                    <td style="padding: 10px 14px; font-weight: 600; color: #111827;">${escapeHtml(i.name || 'Product #' + (i.product_id || ''))}</td>
+                                    <td style="padding: 10px 14px; text-align: center; color: #4b5563;">${i.quantity || 1}</td>
+                                    <td style="padding: 10px 14px; text-align: right; color: #4b5563;">₹${(i.price || 0).toFixed(2)}</td>
+                                    <td style="padding: 10px 14px; text-align: right; font-weight: 700; color: #111827;">₹${((i.price || 0) * (i.quantity || 1)).toFixed(2)}</td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        let recoverySection = "";
+        if (o.recovery || o.recovery_case_id) {
+            const rec = o.recovery || {};
+            recoverySection = `
+                <div style="margin-top: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong style="color: #166534; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">🤖 Autonomous Recovery Audit</strong>
+                        <span class="status-badge" style="background:#dcfce7; color:#15803d; font-size:0.75rem;">${escapeHtml(o.recovery_case_status || 'Handled')}</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #1e3a8a; line-height: 1.7;">
+                        <div><strong>Diagnosis:</strong> ${escapeHtml(rec.predicted_reason || o.payment_status_code || 'Cart Friction')}</div>
+                        <div><strong>Action Taken:</strong> ${escapeHtml((rec.action_taken || 'Autonomous Outreach').replace(/_/g, ' '))}</div>
+                        ${rec.reasoning ? `<div><strong>Reasoning:</strong> ${escapeHtml(rec.reasoning)}</div>` : ''}
+                        ${rec.amount_offered ? `<div><strong>Amount Offered:</strong> ₹${rec.amount_offered.toFixed(2)}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        const content = document.getElementById("order-details-content");
+        content.innerHTML = `
+            <!-- Customer & Status Strip -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; font-size: 0.88rem;">
+                    <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.5px;">Customer Info</div>
+                    <div style="font-weight: 700; color: #111827; font-size: 0.95rem;">${escapeHtml(o.customer_name || 'Guest Customer')}</div>
+                    <div style="color: #4b5563; margin-top: 2px;">${escapeHtml(o.customer_email || 'No email')}</div>
+                    ${o.customer_phone ? `<div style="color: #4b5563; margin-top: 2px;">📞 ${escapeHtml(o.customer_phone)}</div>` : ''}
+                </div>
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; font-size: 0.88rem;">
+                    <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.5px;">Payment & State</div>
+                    <div style="margin-bottom: 4px;">Status: ${getOrderStatusBadge(o.status)}</div>
+                    ${o.razorpay_payment_id ? `<div style="font-size:0.8rem; margin-top:4px;"><strong>Payment ID:</strong> <span style="font-family:monospace; background:#e5e7eb; padding:2px 5px; border-radius:3px;">${escapeHtml(o.razorpay_payment_id)}</span></div>` : ''}
+                    ${o.payment_status_code ? `<div style="font-size:0.8rem; margin-top:4px; color:#b91c1c;"><strong>Failure Code:</strong> ${escapeHtml(o.payment_status_code)}</div>` : ''}
+                </div>
+            </div>
+
+            <!-- Cart Items -->
+            <div>
+                <strong style="color: #374151; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.5px;">Cart Items</strong>
+                ${itemsHtml || '<p style="color:#6b7280; font-size:0.85rem; margin-top: 6px;">No item details saved.</p>'}
+            </div>
+
+            <!-- Financial Totals -->
+            <div style="margin-top: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 18px; font-size: 0.9rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="color: #6b7280;">Cart Subtotal:</span>
+                    <strong>₹${(o.cart_value || 0).toFixed(2)}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 1.05rem;">
+                    <span style="font-weight: 700; color: #111827;">Final Charged Amount:</span>
+                    <strong style="color: #16a34a;">₹${(o.final_amount_charged || o.cart_value || 0).toFixed(2)}</strong>
+                </div>
+            </div>
+
+            <!-- Recovery Section -->
+            ${recoverySection}
+        `;
+
+        document.getElementById("order-modal").style.display = "block";
+    }
+
+    function closeOrderModal() {
+        document.getElementById("order-modal").style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById("order-modal");
+        if (event.target === modal) {
+            closeOrderModal();
+        }
+    };
+
+    document.addEventListener("DOMContentLoaded", loadOrders);
+</script>
 {% endblock %}

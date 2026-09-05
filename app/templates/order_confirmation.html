@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+{% block title %}Order Confirmed — ShopDemo{% endblock %}
+{% block content %}
+<style>
+    .confirmation-container {
+        max-width: 760px;
+        margin: 20px auto 40px auto;
+    }
+    .confirmation-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+    .confirmation-hero {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        color: #ffffff;
+        padding: 40px 30px 36px 30px;
+        text-align: center;
+        position: relative;
+    }
+    .success-icon-wrap {
+        width: 72px;
+        height: 72px;
+        background: rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.4);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 34px;
+        margin-bottom: 16px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        animation: scalePop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes scalePop {
+        0% { transform: scale(0.6); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .confirmation-hero h1 {
+        font-size: 26px;
+        font-weight: 800;
+        margin: 0 0 8px 0;
+        letter-spacing: -0.5px;
+    }
+    .confirmation-hero p {
+        font-size: 15px;
+        margin: 0;
+        opacity: 0.92;
+    }
+    .order-ref-badge {
+        display: inline-block;
+        margin-top: 14px;
+        background: rgba(0,0,0,0.2);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-family: monospace;
+        letter-spacing: 0.5px;
+    }
+    .confirmation-body {
+        padding: 32px;
+    }
+    .stepper-wrap {
+        margin-bottom: 32px;
+        padding-bottom: 28px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .stepper-title {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6b7280;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .stepper {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        position: relative;
+    }
+    .stepper::before {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 10%;
+        right: 10%;
+        height: 3px;
+        background: #e5e7eb;
+        z-index: 1;
+    }
+    .stepper-progress {
+        position: absolute;
+        top: 15px;
+        left: 10%;
+        width: 40%;
+        height: 3px;
+        background: #10b981;
+        z-index: 2;
+    }
+    .step-item {
+        position: relative;
+        z-index: 3;
+        text-align: center;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .step-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 2px solid #d1d5db;
+        color: #9ca3af;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    .step-item.completed .step-circle {
+        background: #10b981;
+        border-color: #10b981;
+        color: #ffffff;
+    }
+    .step-item.active .step-circle {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: #ffffff;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+    }
+    .step-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #4b5563;
+        text-align: center;
+    }
+    .step-item.completed .step-label {
+        color: #065f46;
+    }
+    .step-item.active .step-label {
+        color: #1d4ed8;
+    }
+    
+    .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 28px;
+    }
+    .meta-box {
+        background: #f9fafb;
+        padding: 16px 18px;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+    }
+    .meta-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #6b7280;
+        font-weight: 700;
+        margin-bottom: 4px;
+        letter-spacing: 0.5px;
+    }
+    .meta-val {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f2937;
+        word-break: break-all;
+    }
+    
+    .items-card {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 28px;
+    }
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .items-table th {
+        text-align: left;
+        font-size: 12px;
+        font-weight: 700;
+        color: #6b7280;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e5e7eb;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .items-table td {
+        padding: 12px 0;
+        font-size: 14px;
+        color: #374151;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .items-table tr:last-child td {
+        border-bottom: none;
+    }
+    .item-title {
+        font-weight: 600;
+        color: #111827;
+    }
+    
+    .pricing-summary {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 2px dashed #e5e7eb;
+    }
+    .pricing-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        color: #4b5563;
+        margin-bottom: 10px;
+    }
+    .pricing-row.total {
+        font-size: 18px;
+        font-weight: 800;
+        color: #111827;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #e5e7eb;
+    }
+    .discount-highlight {
+        color: #059669;
+        font-weight: 600;
+    }
+    .coupon-tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-left: 6px;
+    }
+    
+    .actions-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: center;
+        align-items: center;
+        margin-top: 28px;
+    }
+    .btn-primary-action {
+        background: #2563eb;
+        color: #ffffff;
+        padding: 12px 24px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        transition: background 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-primary-action:hover {
+        background: #1d4ed8;
+    }
+    .btn-secondary-action {
+        background: #f3f4f6;
+        color: #374151;
+        padding: 12px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        border: 1px solid #e5e7eb;
+        transition: background 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+    }
+    .btn-secondary-action:hover {
+        background: #e5e7eb;
+    }
+    
+    .trust-footer-note {
+        margin-top: 24px;
+        text-align: center;
+        font-size: 12px;
+        color: #6b7280;
+        line-height: 1.5;
+    }
+    @media print {
+        header, .actions-row, .breadcrumb-nav {
+            display: none !important;
+        }
+        .confirmation-card {
+            border: none;
+            box-shadow: none;
+        }
+    }
+</style>
+
+<div class="confirmation-container">
+    <div class="confirmation-card">
+        <div class="confirmation-hero">
+            <div class="success-icon-wrap">✓</div>
+            <h1>Payment Successful!</h1>
+            <p>Your order has been confirmed. A confirmation email has been sent to your inbox.</p>
+            <div class="order-ref-badge">Order ID: {{ session.event_id }}</div>
+        </div>
+        
+        <div class="confirmation-body">
+            <!-- Stepper Progress -->
+            <div class="stepper-wrap">
+                <div class="stepper-title">Estimated Delivery: 3–5 Business Days</div>
+                <div class="stepper">
+                    <div class="stepper-progress"></div>
+                    <div class="step-item completed">
+                        <div class="step-circle">✓</div>
+                        <div class="step-label">Ordered</div>
+                    </div>
+                    <div class="step-item completed">
+                        <div class="step-circle">✓</div>
+                        <div class="step-label">Paid</div>
+                    </div>
+                    <div class="step-item active">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Processing</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">Shipped</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">Delivered</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Metadata Grid -->
+            <div class="meta-grid">
+                <div class="meta-box">
+                    <div class="meta-label">Customer</div>
+                    <div class="meta-val">{{ session.customer_name or 'Valued Customer' }}</div>
+                    <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">{{ session.customer_email }}</div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-label">Payment ID</div>
+                    <div class="meta-val">{{ session.razorpay_payment_id or 'Razorpay Test' }}</div>
+                    <div style="font-size: 12px; color: #10b981; font-weight: 600; margin-top: 2px;">● Verified</div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-label">Contact Phone</div>
+                    <div class="meta-val">{{ session.customer_phone or '—' }}</div>
+                    <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">SMS updates active</div>
+                </div>
+            </div>
+            
+            <!-- Order Items & Pricing Card -->
+            <div class="items-card">
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th style="text-align: center;">Qty</th>
+                            <th style="text-align: right;">Price</th>
+                            <th style="text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if cart_items %}
+                            {% for item in cart_items %}
+                                <tr>
+                                    <td>
+                                        <div class="item-title">{{ item.name }}</div>
+                                    </td>
+                                    <td style="text-align: center;">{{ item.quantity }}</td>
+                                    <td style="text-align: right;">₹{{ "%.2f"|format(item.price) }}</td>
+                                    <td style="text-align: right; font-weight: 600;">₹{{ "%.2f"|format(item.price * item.quantity) }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: #9ca3af; padding: 16px;">Standard Order Package</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                
+                <div class="pricing-summary">
+                    <div class="pricing-row">
+                        <span>Cart Subtotal</span>
+                        <span>₹{{ "%.2f"|format(session.cart_value) }}</span>
+                    </div>
+                    
+                    {% set final_paid = session.final_amount_charged if session.final_amount_charged is not none else session.cart_value %}
+                    {% set discount_given = session.cart_value - final_paid %}
+                    
+                    {% if coupon or discount_given > 0 %}
+                        <div class="pricing-row discount-highlight">
+                            <span>
+                                Coupon Discount
+                                {% if coupon %}
+                                    <span class="coupon-tag-badge">🏷️ {{ coupon.code }}</span>
+                                {% endif %}
+                            </span>
+                            <span>- ₹{{ "%.2f"|format(discount_given if discount_given > 0 else 0.0) }}</span>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="pricing-row">
+                        <span>Shipping & Handling</span>
+                        <span style="color: #059669; font-weight: 600;">FREE</span>
+                    </div>
+                    
+                    <div class="pricing-row total">
+                        <span>Total Paid</span>
+                        <span>₹{{ "%.2f"|format(final_paid) }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="actions-row">
+                <a href="/" class="btn-primary-action">🛍️ Continue Shopping</a>
+                <a href="/account/orders" class="btn-secondary-action">📦 View My Orders</a>
+                <button type="button" onclick="window.print()" class="btn-secondary-action">🖨️ Print Receipt</button>
+            </div>
+            
+            <div class="trust-footer-note">
+                🔒 Secured with 256-bit SSL encryption & Razorpay Smart Checkout.<br>
+                Need assistance? Our AI recovery concierge & merchant support team is available 24/7.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -60,8 +60,11 @@ class RazorpayRecoveryClient:
         description: str,
         reference_id: str,
         max_retries: int = 3,
+        notes: Optional[dict] = None,
+        callback_url: Optional[str] = None,
+        callback_method: Optional[str] = "get",
     ) -> PaymentLinkResult:
-        """Creates a Razorpay Payment Link for a customer to complete an abandoned checkout.
+        """Creates a Razorpay Payment Link for a customer to complete an abandoned checkout or pay an invoice.
         Amount must be passed to Razorpay in paise (smallest currency unit), not rupees.
 
         Rate limiting: Razorpay test mode enforces a request rate limit. "Too many
@@ -92,10 +95,15 @@ class RazorpayRecoveryClient:
                 "email": customer_email,
                 "contact": customer_phone,
             },
-            "notify": {"sms": True, "email": True},
+            "notify": {"sms": False, "email": False},
             "reminder_enable": True,
             "reference_id": reference_id,
         }
+        if notes:
+            payload["notes"] = notes
+        if callback_url:
+            payload["callback_url"] = callback_url
+            payload["callback_method"] = callback_method or "get"
 
         last_error = None
         for attempt in range(max_retries + 1):
@@ -189,6 +197,20 @@ class RazorpayRecoveryClient:
             logger.error(f"Signature verification error for order {order_id}: {e}")
             return False
 
+    def verify_webhook_signature(self, body_bytes: bytes, signature: str, secret: Optional[str] = None) -> bool:
+        """Verifies Razorpay webhook signature (X-Razorpay-Signature) using HMAC SHA256."""
+        webhook_secret = secret or os.getenv("RAZORPAY_WEBHOOK_SECRET") or self.key_secret
+        if not webhook_secret:
+            logger.warning("No webhook secret configured, skipping signature check")
+            return True
+        try:
+            body_str = body_bytes.decode("utf-8") if isinstance(body_bytes, bytes) else str(body_bytes)
+            self.client.utility.verify_webhook_signature(body_str, signature, webhook_secret)
+            return True
+        except Exception as e:
+            logger.error(f"Webhook signature verification failed: {e}")
+            return False
+
 
 class SimulatedRazorpayClient:
     """Drop-in replacement for RazorpayRecoveryClient, implementing the SAME interface,
@@ -207,7 +229,8 @@ class SimulatedRazorpayClient:
     --mode flag) to prove the actual Razorpay integration works end to end.
     """
 
-    def __init__(self, paid_rate: float = 0.35, failure_rate: float = 0.05):
+    def __init__(self, paid_rate: float = 0.35, failure_rate: float = 0.05, key_id: str = "mock_key"):
+        self.key_id = key_id
         self.paid_rate = paid_rate
         self.failure_rate = failure_rate
         self._link_statuses: dict[str, str] = {}  # in-memory "database" of simulated links
@@ -227,6 +250,9 @@ class SimulatedRazorpayClient:
         description: str,
         reference_id: str,
         max_retries: int = 3,
+        notes: Optional[dict] = None,
+        callback_url: Optional[str] = None,
+        callback_method: Optional[str] = "get",
     ) -> PaymentLinkResult:
         if amount_rupees <= 0:
             return PaymentLinkResult(
@@ -244,15 +270,6 @@ class SimulatedRazorpayClient:
             )
 
         link_id = f"plink_sim_{hashlib.sha256(reference_id.encode()).hexdigest()[:14]}"
-
-        # IMPORTANT: status is seeded by link_id, NOT reference_id. This is what
-        # reconcile_pipeline.py has access to later (RecoveryOutcome stores
-        # payment_link_id, not the original reference_id) -- seeding status by
-        # link_id means a fresh SimulatedRazorpayClient instance in a separate
-        # script run can deterministically re-derive the SAME status, so creation-time
-        # and reconciliation-time results always agree. (Seeding by reference_id here
-        # would silently produce DIFFERENT results at reconcile time -- a real bug
-        # caught while wiring up the two-script flow, see CHALLENGES.md.)
         status_roll = self._seeded_random(link_id)
         self._link_statuses[link_id] = "paid" if status_roll < self.paid_rate else "created"
 
@@ -269,3 +286,36 @@ class SimulatedRazorpayClient:
         # history -- re-derive deterministically from the link_id itself.
         status_roll = self._seeded_random(payment_link_id)
         return "paid" if status_roll < self.paid_rate else "created"
+
+    def create_order(self, amount_rupees: float, receipt: str) -> OrderResult:
+        if amount_rupees <= 0:
+            return OrderResult(success=False, error_message=f"Invalid amount: {amount_rupees}")
+        
+        # In mock mode, we just return a fake order ID
+        return OrderResult(success=True, order_id=f"order_sim_{receipt}")
+
+    def verify_payment_signature(self, order_id: str, payment_id: str, signature: str) -> bool:
+        # In mock mode, all signatures are valid unless they are explicitly marked as invalid
+        if signature == "mock_invalid_signature" or signature == "invalid_signature":
+            return False
+        return True
+
+    def verify_webhook_signature(self, body_bytes: bytes, signature: str, secret: Optional[str] = None) -> bool:
+        if signature == "mock_invalid_signature" or signature == "invalid_signature":
+            return False
+        return True
+
+
+def get_razorpay_client():
+    """FastAPI dependency -- lets tests override this with a mock, same pattern as get_db."""
+    if os.getenv("MOCK_PAYMENTS", "false").lower() == "true":
+        client = SimulatedRazorpayClient()
+        client.key_id = "mock_key"
+        return client
+    return RazorpayRecoveryClient()
+
+
+def get_recovery_razorpay_client():
+    if os.getenv("RECOVERY_MODE", "simulated") == "live":
+        return RazorpayRecoveryClient()
+    return SimulatedRazorpayClient()

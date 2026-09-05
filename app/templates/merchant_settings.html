@@ -1,0 +1,798 @@
+{% extends "base_merchant.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<style>
+    .settings-container {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+    }
+    .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    @media (max-width: 860px) {
+        .settings-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .settings-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+    }
+    .settings-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .settings-card-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        background: #f0fdf4;
+        color: #16a34a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: bold;
+    }
+    .settings-card-icon.blue {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+    .settings-card-icon.purple {
+        background: #faf5ff;
+        color: #7c3aed;
+    }
+    .settings-card-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+    }
+    .settings-card-desc {
+        font-size: 13px;
+        color: #6b7280;
+        margin-top: 2px;
+    }
+    .form-group {
+        margin-bottom: 16px;
+    }
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 6px;
+    }
+    .form-group .hint {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 4px;
+    }
+    .form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #1f2937;
+        background: #ffffff;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        box-sizing: border-box;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .form-row {
+        display: flex;
+        gap: 12px;
+    }
+    .form-row .form-group {
+        flex: 1;
+    }
+    .badge-pill {
+        display: inline-block;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 9999px;
+    }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-danger { background: #fee2e2; color: #b91c1c; }
+    .badge-amber { background: #fef3c7; color: #b45309; }
+    
+    .coupon-inline-form {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1.2fr auto;
+        gap: 10px;
+        margin-bottom: 20px;
+        align-items: center;
+    }
+    @media (max-width: 768px) {
+        .coupon-inline-form {
+            grid-template-columns: 1fr;
+        }
+    }
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .settings-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 13px;
+    }
+    .settings-table th {
+        padding: 10px 12px;
+        background: #f9fafb;
+        color: #4b5563;
+        font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .settings-table td {
+        padding: 12px;
+        border-bottom: 1px solid #f3f4f6;
+        color: #1f2937;
+    }
+    .settings-table tr:hover {
+        background: #fbfbfb;
+    }
+    .save-bar {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .primary-save-btn {
+        background: #111827;
+        color: #ffffff;
+        border: none;
+        padding: 11px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    .primary-save-btn:hover {
+        background: #1f2937;
+    }
+    .primary-save-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+    .secondary-action-btn {
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .secondary-action-btn:hover {
+        background: #e5e7eb;
+    }
+    .scenario-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .scenario-badge.payment_failure {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    .scenario-badge.checkout_abandonment {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    .scenario-badge.overdue_receivable {
+        background-color: #ede9fe;
+        color: #6b21a8;
+    }
+</style>
+
+<div class="settings-container">
+    <div class="section-header" style="margin-bottom: 24px;">
+        <div>
+            <h1 style="font-size: 24px; font-weight: 800; color: #111827; margin: 0;">Store Settings & AI Strategy</h1>
+            <p style="font-size: 14px; color: #6b7280; margin-top: 4px;">Configure your store contact details, autonomous AI recovery limits, and discount coupons.</p>
+        </div>
+    </div>
+
+    <form id="settings-form">
+        <div class="settings-grid">
+            <!-- Store Profile & Contact Card -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon blue">🏪</div>
+                    <div>
+                        <h3 class="settings-card-title">Store & Contact Information</h3>
+                        <p class="settings-card-desc">Public contact details displayed in recovery emails and notices</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="contact_email">Support Contact Email</label>
+                    <input type="email" id="contact_email" class="form-control" placeholder="support@yourstore.com">
+                    <div class="hint">Customer inquiries and escalation notifications will be routed here.</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="phone">Support Phone Number</label>
+                        <input type="text" id="phone" class="form-control" placeholder="+91 98765 43210">
+                    </div>
+                    <div class="form-group">
+                        <label for="business_category">Business Category</label>
+                        <input type="text" id="business_category" class="form-control" placeholder="e.g. Apparel, Electronics">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Autonomous AI Guardrails Card -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon">🛡️</div>
+                    <div>
+                        <h3 class="settings-card-title">Autonomous AI Guardrails</h3>
+                        <p class="settings-card-desc">Strict boundaries enforced across all automated recovery workflows</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="min_discount_pct">Min Auto Discount %</label>
+                        <input type="number" id="min_discount_pct" class="form-control" min="0" max="100" placeholder="5">
+                        <div class="hint">Lowest discount AI can offer</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="max_discount_pct">Max Auto Discount %</label>
+                        <input type="number" id="max_discount_pct" class="form-control" min="0" max="100" placeholder="20">
+                        <div class="hint">Hard ceiling on auto discounts</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="max_recovery_attempts">Max Recovery Attempts</label>
+                        <input type="number" id="max_recovery_attempts" class="form-control" min="1" max="10" placeholder="3">
+                        <div class="hint">Per abandoned customer cart</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="high_value_threshold_amount">High-Value Threshold (₹)</label>
+                        <input type="number" id="high_value_threshold_amount" class="form-control" min="100" step="100" placeholder="3000">
+                        <div class="hint">Flags carts for priority review</div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 6px;">
+                    <label for="automated_recovery_message">Custom Recovery Notice</label>
+                    <textarea id="automated_recovery_message" class="form-control" rows="2" placeholder="e.g. Complete your checkout now and get an exclusive limited-time discount!"></textarea>
+                    <div class="hint">Appears in customer email & in-app recovery notifications.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sticky Save Action Bar -->
+        <div class="save-bar">
+            <div id="settings-msg" style="font-size: 14px; font-weight: 600;"></div>
+            <button type="submit" class="primary-save-btn">Save Settings & Guardrails</button>
+        </div>
+    </form>
+
+    <!-- Coupons & Promotional Management Card -->
+    <div id="coupons" class="settings-card" style="margin-top: 24px;">
+        <div class="settings-card-header">
+            <div class="settings-card-icon purple">🏷️</div>
+            <div>
+                <h3 class="settings-card-title">Promotional Coupons</h3>
+                <p class="settings-card-desc">Create and manage coupon codes usable for manual and autonomous recovery</p>
+            </div>
+        </div>
+
+        <form id="coupon-form" class="coupon-inline-form">
+            <input type="text" id="coupon_code" class="form-control" placeholder="Code (e.g. SAVE15)" required style="text-transform: uppercase;">
+            <input type="number" id="coupon_pct" class="form-control" placeholder="% Off" min="1" max="100">
+            <input type="number" id="coupon_amt" class="form-control" placeholder="₹ Off" min="1">
+            <input type="number" id="coupon_limit" class="form-control" placeholder="Usage Limit" min="1">
+            <button type="submit" class="primary-save-btn" style="padding: 10px 18px; white-space: nowrap;">+ Add Coupon</button>
+        </form>
+
+        <div class="table-responsive">
+            <table class="settings-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Discount</th>
+                        <th>Usage / Limit</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="coupons-table-body">
+                    <tr><td colspan="5" style="text-align: center; color: #9ca3af; padding: 20px;">Loading coupons...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Coupon Usage History Subsection -->
+    <div id="coupon-usage" class="settings-card" style="margin-top: 24px;">
+        <div class="settings-card-header">
+            <div class="settings-card-icon blue">📊</div>
+            <div>
+                <h3 class="settings-card-title">Coupon Usage History</h3>
+                <p class="settings-card-desc">Audit and performance reports of coupons redeemed through the automated recovery pipeline</p>
+            </div>
+        </div>
+
+        <!-- Top KPI Summary Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
+            <div style="background: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #f59e0b; padding: 16px 18px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Discounts Given</div>
+                <div id="kpi-total-discounts" style="font-size: 1.45rem; font-weight: 800; color: #d97706; margin-top: 4px; word-break: break-word;">₹0.00</div>
+                <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Across all recovered orders</div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #10b981; padding: 16px 18px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Recovered Value</div>
+                <div id="kpi-total-recovered" style="font-size: 1.45rem; font-weight: 800; color: #10b981; margin-top: 4px; word-break: break-word;">₹0.00</div>
+                <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Net sales with coupons</div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #3b82f6; padding: 16px 18px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="font-size: 11px; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Coupon Recoveries</div>
+                <div id="kpi-total-count" style="font-size: 1.45rem; font-weight: 800; color: #2563eb; margin-top: 4px; word-break: break-word;">0</div>
+                <div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">Orders redeemed via recovery</div>
+            </div>
+        </div>
+
+        <!-- Filters Bar -->
+        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end;">
+            <div>
+                <label style="font-size: 12px; color: #4b5563; display: block; margin-bottom: 4px; font-weight: 600;">Scenario:</label>
+                <select id="filter-scenario" class="form-control" style="padding: 7px 10px; font-size: 13px; width: auto;">
+                    <option value="all">All Scenarios</option>
+                    <option value="payment_failure">Payment Failure</option>
+                    <option value="checkout_abandonment">Checkout Abandonment</option>
+                    <option value="overdue_receivable">Overdue Receivable</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #4b5563; display: block; margin-bottom: 4px; font-weight: 600;">Status:</label>
+                <select id="filter-status" class="form-control" style="padding: 7px 10px; font-size: 13px; width: auto;">
+                    <option value="all">All Statuses</option>
+                    <option value="recovered" selected>Recovered</option>
+                    <option value="at_risk">At Risk</option>
+                    <option value="intervening">Intervening</option>
+                    <option value="escalated">Escalated</option>
+                    <option value="lost">Lost</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #4b5563; display: block; margin-bottom: 4px; font-weight: 600;">Coupon Code:</label>
+                <input type="text" id="filter-code" class="form-control" placeholder="e.g. SAVE10" style="padding: 7px 10px; font-size: 13px; width: 130px;">
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #4b5563; display: block; margin-bottom: 4px; font-weight: 600;">Date Range:</label>
+                <select id="date-preset-filter" class="form-control" onchange="handleCouponDatePresetChange()" style="padding: 7px 10px; font-size: 13px; width: auto;">
+                    <option value="all">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="last7">Last 7 Days</option>
+                    <option value="last30">Last 30 Days</option>
+                    <option value="thisMonth">This Month</option>
+                    <option value="custom">Custom Range...</option>
+                </select>
+            </div>
+            <div id="custom-date-inputs" style="display: none; align-items: center; gap: 6px;">
+                <input type="date" id="filter-start" class="form-control" style="padding: 6px 8px; font-size: 13px; width: auto;">
+                <span style="color: #6b7280; font-size: 12px;">to</span>
+                <input type="date" id="filter-end" class="form-control" style="padding: 6px 8px; font-size: 13px; width: auto;">
+            </div>
+            <div>
+                <button type="button" class="secondary-action-btn" style="padding: 8px 14px; font-size: 13px;" onclick="resetCouponFilters()">Reset Filters</button>
+            </div>
+        </div>
+
+        <!-- Recovered Cases Table -->
+        <div class="table-responsive">
+            <table class="settings-table" style="min-width: 760px;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Scenario</th>
+                        <th>Coupon Code</th>
+                        <th style="text-align: right;">Discount Amount (₹)</th>
+                        <th style="text-align: right;">Order Total (₹)</th>
+                        <th style="text-align: right;">Session ID</th>
+                    </tr>
+                </thead>
+                <tbody id="coupon-table-body">
+                    <tr><td colspan="7" style="text-align: center; padding: 24px; color: #9ca3af;">Loading coupon recovery records...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<script>
+    async function loadSettings() {
+        try {
+            const res = await fetch("/api/merchant/settings");
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById("contact_email").value = data.contact_email || "";
+                document.getElementById("phone").value = data.phone || "";
+                document.getElementById("business_category").value = data.business_category || "";
+                document.getElementById("min_discount_pct").value = data.min_discount_pct !== null && data.min_discount_pct !== undefined ? data.min_discount_pct : 5;
+                document.getElementById("max_discount_pct").value = data.max_discount_pct !== null && data.max_discount_pct !== undefined ? data.max_discount_pct : 20;
+                document.getElementById("max_recovery_attempts").value = data.max_recovery_attempts || 3;
+                document.getElementById("high_value_threshold_amount").value = data.high_value_threshold_amount || 3000;
+                document.getElementById("automated_recovery_message").value = data.automated_recovery_message || "";
+            }
+        } catch(e) {
+            console.error("Failed to load settings", e);
+        }
+    }
+    
+    async function loadCoupons() {
+        try {
+            const res = await fetch("/api/merchant/coupons");
+            if (res.ok) {
+                const coupons = await res.json();
+                const tbody = document.getElementById("coupons-table-body");
+                tbody.innerHTML = "";
+                if (coupons.length === 0) {
+                    tbody.innerHTML = "<tr><td colspan='5' style='text-align:center; padding: 24px; color: #9ca3af;'>No coupons created yet. Use the form above to add one.</td></tr>";
+                    return;
+                }
+                coupons.forEach(c => {
+                    const tr = document.createElement("tr");
+                    const discount = c.discount_pct ? `<strong>${c.discount_pct}%</strong> off` : `<strong>₹${c.discount_amount}</strong> off`;
+                    const usage = c.usage_limit ? `${c.times_used} / ${c.usage_limit}` : `${c.times_used} / ∞`;
+                    const statusBadge = c.active 
+                        ? '<span class="badge-pill badge-success">Active</span>' 
+                        : '<span class="badge-pill badge-danger">Inactive</span>';
+                    
+                    tr.innerHTML = `
+                        <td><code style="background:#f3f4f6; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 13px; color: #111827;">${c.code}</code></td>
+                        <td>${discount}</td>
+                        <td>${usage}</td>
+                        <td>${statusBadge}</td>
+                        <td style="text-align: right;">
+                            <button onclick="toggleCoupon(${c.id}, ${!c.active}, '${c.code}', ${c.discount_pct || 'null'}, ${c.discount_amount || 'null'}, ${c.usage_limit || 'null'})" class="secondary-action-btn">
+                                ${c.active ? 'Deactivate' : 'Activate'}
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch(e) {
+            console.error("Failed to load coupons", e);
+        }
+    }
+
+    document.getElementById("coupon-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const code = document.getElementById("coupon_code").value.trim().toUpperCase();
+        const pct = parseInt(document.getElementById("coupon_pct").value) || null;
+        const amt = parseFloat(document.getElementById("coupon_amt").value) || null;
+        const limit = parseInt(document.getElementById("coupon_limit").value) || null;
+
+        if (!pct && !amt) {
+            alert("Please specify either a % discount or a ₹ fixed discount amount.");
+            return;
+        }
+
+        const payload = {
+            code: code,
+            discount_pct: pct,
+            discount_amount: amt,
+            usage_limit: limit
+        };
+
+        const res = await fetch("/api/merchant/coupons", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            document.getElementById("coupon_code").value = "";
+            document.getElementById("coupon_pct").value = "";
+            document.getElementById("coupon_amt").value = "";
+            document.getElementById("coupon_limit").value = "";
+            loadCoupons();
+        } else {
+            const err = await res.json();
+            alert(err.detail || "Failed to add coupon");
+        }
+    });
+
+    function formatCouponDateForInput(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function handleCouponDatePresetChange() {
+        const preset = document.getElementById("date-preset-filter").value;
+        const customDiv = document.getElementById("custom-date-inputs");
+        const fromInput = document.getElementById("filter-start");
+        const toInput = document.getElementById("filter-end");
+
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (preset === "all") {
+            customDiv.style.display = "none";
+            fromInput.value = "";
+            toInput.value = "";
+        } else if (preset === "today") {
+            customDiv.style.display = "none";
+            fromInput.value = formatCouponDateForInput(startOfToday);
+            toInput.value = formatCouponDateForInput(now);
+        } else if (preset === "yesterday") {
+            customDiv.style.display = "none";
+            const yesterday = new Date(startOfToday);
+            yesterday.setDate(yesterday.getDate() - 1);
+            fromInput.value = formatCouponDateForInput(yesterday);
+            toInput.value = formatCouponDateForInput(yesterday);
+        } else if (preset === "last7") {
+            customDiv.style.display = "none";
+            const sevenDaysAgo = new Date(startOfToday);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+            fromInput.value = formatCouponDateForInput(sevenDaysAgo);
+            toInput.value = formatCouponDateForInput(now);
+        } else if (preset === "last30") {
+            customDiv.style.display = "none";
+            const thirtyDaysAgo = new Date(startOfToday);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+            fromInput.value = formatCouponDateForInput(thirtyDaysAgo);
+            toInput.value = formatCouponDateForInput(now);
+        } else if (preset === "thisMonth") {
+            customDiv.style.display = "none";
+            const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            fromInput.value = formatCouponDateForInput(firstOfMonth);
+            toInput.value = formatCouponDateForInput(now);
+        } else if (preset === "custom") {
+            customDiv.style.display = "inline-flex";
+        }
+
+        loadCouponUsage();
+    }
+
+    async function loadCouponUsage() {
+        const scenario = document.getElementById("filter-scenario") ? document.getElementById("filter-scenario").value : "all";
+        const status = document.getElementById("filter-status") ? document.getElementById("filter-status").value : "recovered";
+        const code = document.getElementById("filter-code") ? document.getElementById("filter-code").value.trim() : "";
+        const start = document.getElementById("filter-start") ? document.getElementById("filter-start").value : "";
+        const end = document.getElementById("filter-end") ? document.getElementById("filter-end").value : "";
+
+        const params = new URLSearchParams();
+        if (scenario && scenario !== "all") params.append("scenario", scenario);
+        if (status && status !== "all") params.append("status", status);
+        if (code) params.append("coupon_code", code);
+        if (start) params.append("start_date", new Date(start).toISOString());
+        if (end) {
+            const endDate = new Date(end);
+            endDate.setHours(23, 59, 59, 999);
+            params.append("end_date", endDate.toISOString());
+        }
+
+        try {
+            const res = await fetch(`/api/merchant/coupon-recovery-usage?${params.toString()}`);
+            if (!res.ok) throw new Error("Failed to load coupon usage");
+            const data = await res.json();
+
+            // Render KPIs
+            const s = data.summary || {};
+            const kpiDiscounts = document.getElementById("kpi-total-discounts");
+            const kpiRecovered = document.getElementById("kpi-total-recovered");
+            const kpiCount = document.getElementById("kpi-total-count");
+            if (kpiDiscounts) kpiDiscounts.innerText = "₹" + (s.total_discount_amount || 0).toFixed(2);
+            if (kpiRecovered) kpiRecovered.innerText = "₹" + (s.total_recovered_amount || 0).toFixed(2);
+            if (kpiCount) kpiCount.innerText = s.total_coupon_recovered_cases || 0;
+
+            // Render Table
+            renderCouponUsageTable(data.cases || []);
+        } catch (e) {
+            const tbody = document.getElementById("coupon-table-body");
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#dc2626; padding:20px;">Error loading records: ${e.message}</td></tr>`;
+        }
+    }
+
+    function renderCouponUsageTable(cases) {
+        const tbody = document.getElementById("coupon-table-body");
+        if (!tbody) return;
+        tbody.innerHTML = "";
+
+        if (cases.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#9ca3af;">No cases with coupons found matching the selected criteria.</td></tr>`;
+            return;
+        }
+
+        cases.forEach(c => {
+            const tr = document.createElement("tr");
+            const dateStr = c.date ? new Date(c.date).toLocaleString() : "—";
+            const scen = (c.scenario || "checkout_abandonment").toLowerCase();
+
+            tr.innerHTML = `
+                <td style="font-size: 13px; color: #4b5563;">${dateStr}</td>
+                <td>
+                    <div style="font-weight: 600; color: #111827;">${escapeHtml(c.customer_name)}</div>
+                    <div style="font-size: 12px; color: #6b7280;">${escapeHtml(c.customer_email)}</div>
+                </td>
+                <td><span class="scenario-badge ${scen}">${formatScenario(scen)}</span></td>
+                <td>
+                    <span style="display:inline-block; font-family:monospace; background:#fef3c7; color:#92400e; font-weight:700; padding:2px 8px; border-radius:4px; border:1px solid #fde68a;">
+                        ${escapeHtml(c.coupon_code || "—")}
+                    </span>
+                </td>
+                <td style="text-align: right; font-weight: 700; color: #d97706;">₹${Number(c.discount_amount || 0).toFixed(2)}</td>
+                <td style="text-align: right; font-weight: 700; color: #15803d;">₹${Number(c.order_total || 0).toFixed(2)}</td>
+                <td style="text-align: right; font-size: 12px; color: #6b7280;">${c.checkout_session_id || "—"}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function formatScenario(str) {
+        if (!str) return "Abandonment";
+        if (str === "payment_failure") return "Payment Failure";
+        if (str === "checkout_abandonment") return "Abandonment";
+        if (str === "overdue_receivable") return "Receivable";
+        return str.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function resetCouponFilters() {
+        const fScen = document.getElementById("filter-scenario");
+        const fStat = document.getElementById("filter-status");
+        const fCode = document.getElementById("filter-code");
+        const fPreset = document.getElementById("date-preset-filter");
+        const fStart = document.getElementById("filter-start");
+        const fEnd = document.getElementById("filter-end");
+        const customDiv = document.getElementById("custom-date-inputs");
+
+        if (fScen) fScen.value = "all";
+        if (fStat) fStat.value = "recovered";
+        if (fCode) fCode.value = "";
+        if (fPreset) fPreset.value = "all";
+        if (fStart) fStart.value = "";
+        if (fEnd) fEnd.value = "";
+        if (customDiv) customDiv.style.display = "none";
+        loadCouponUsage();
+    }
+
+    async function toggleCoupon(id, makeActive, code, pct, amt, limit) {
+        const payload = {
+            code: code,
+            discount_pct: pct,
+            discount_amount: amt,
+            usage_limit: limit,
+            active: makeActive
+        };
+        await fetch(`/api/merchant/coupons/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        loadCoupons();
+    }
+    
+    document.getElementById("settings-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const min_d = parseInt(document.getElementById("min_discount_pct").value) || 0;
+        const max_d = parseInt(document.getElementById("max_discount_pct").value) || 0;
+        const msg = document.getElementById("settings-msg");
+        
+        if (min_d > max_d) {
+            msg.textContent = "⚠️ Error: Min discount % cannot exceed Max discount %";
+            msg.style.color = "#dc2626";
+            return;
+        }
+        
+        const payload = {
+            contact_email: document.getElementById("contact_email").value,
+            phone: document.getElementById("phone").value,
+            business_category: document.getElementById("business_category").value,
+            min_discount_pct: min_d,
+            max_discount_pct: max_d,
+            max_recovery_attempts: parseInt(document.getElementById("max_recovery_attempts").value) || 3,
+            high_value_threshold_amount: parseFloat(document.getElementById("high_value_threshold_amount").value) || 3000,
+            auto_call_high_priority: false,
+            automated_recovery_message: document.getElementById("automated_recovery_message").value || null
+        };
+        
+        const btn = document.querySelector("#settings-form button[type='submit']");
+        btn.disabled = true;
+        btn.textContent = "Saving...";
+        msg.textContent = "";
+        
+        try {
+            const res = await fetch("/api/merchant/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            
+            if (res.ok) {
+                msg.textContent = "✅ Settings & AI Guardrails saved successfully!";
+                msg.style.color = "#16a34a";
+                setTimeout(() => { msg.textContent = ""; }, 4000);
+            } else {
+                const err = await res.json();
+                msg.textContent = "❌ " + (err.detail || "Failed to save settings.");
+                msg.style.color = "#dc2626";
+            }
+        } catch(err) {
+            msg.textContent = "❌ Network error saving settings.";
+            msg.style.color = "#dc2626";
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Save Settings & Guardrails";
+        }
+    });
+    
+    document.addEventListener("DOMContentLoaded", () => {
+        loadSettings();
+        loadCoupons();
+        loadCouponUsage();
+
+        const filterScenario = document.getElementById("filter-scenario");
+        const filterStatus = document.getElementById("filter-status");
+        const filterCode = document.getElementById("filter-code");
+        const filterStart = document.getElementById("filter-start");
+        const filterEnd = document.getElementById("filter-end");
+
+        if (filterScenario) filterScenario.addEventListener("change", loadCouponUsage);
+        if (filterStatus) filterStatus.addEventListener("change", loadCouponUsage);
+        if (filterCode) {
+            filterCode.addEventListener("input", () => {
+                clearTimeout(window._couponSearchTimeout);
+                window._couponSearchTimeout = setTimeout(loadCouponUsage, 300);
+            });
+        }
+        if (filterStart) filterStart.addEventListener("change", loadCouponUsage);
+        if (filterEnd) filterEnd.addEventListener("change", loadCouponUsage);
+
+        if (window.location.hash) {
+            const el = document.querySelector(window.location.hash);
+            if (el) {
+                setTimeout(() => { el.scrollIntoView({ behavior: 'smooth' }); }, 200);
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,315 @@
+{% extends "base_merchant.html" %}
+{% block title %}Merchant Profile{% endblock %}
+{% block content %}
+<style>
+    .profile-container {
+        max-width: 960px;
+        width: 100%;
+        margin: 0;
+    }
+    .profile-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        padding: 28px;
+        margin-bottom: 24px;
+    }
+    .profile-header-wrap {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding-bottom: 24px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .profile-avatar-box {
+        width: 80px;
+        height: 80px;
+        border-radius: 16px;
+        background: #f3f4f6;
+        border: 2px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        font-size: 28px;
+        font-weight: 800;
+        color: #4b5563;
+        flex-shrink: 0;
+    }
+    .profile-avatar-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .profile-meta-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #111827;
+        margin: 0 0 4px 0;
+    }
+    .profile-meta-subtitle {
+        font-size: 13px;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .badge-verified {
+        background: #dcfce7;
+        color: #15803d;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .form-group {
+        margin-bottom: 18px;
+    }
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 6px;
+    }
+    .form-group .hint {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 4px;
+    }
+    .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #1f2937;
+        background: #ffffff;
+        box-sizing: border-box;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .grid-2col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    @media (max-width: 640px) {
+        .grid-2col {
+            grid-template-columns: 1fr;
+        }
+    }
+    .actions-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+    }
+    .primary-save-btn {
+        background: #111827;
+        color: #ffffff;
+        border: none;
+        padding: 11px 26px;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+    .primary-save-btn:hover {
+        background: #1f2937;
+    }
+    .primary-save-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+    .quick-links-card {
+        background: #f9fafb;
+        border: 1px dashed #d1d5db;
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .quick-link-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        color: #374151;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background 0.15s ease;
+    }
+    .quick-link-btn:hover {
+        background: #f3f4f6;
+        color: #111827;
+    }
+</style>
+
+<div class="profile-container">
+    <div class="section-header" style="margin-bottom: 24px;">
+        <div>
+            <h1 style="font-size: 24px; font-weight: 800; color: #111827; margin: 0;">Merchant Profile</h1>
+            <p style="font-size: 14px; color: #6b7280; margin-top: 4px;">Manage your business identity, store branding, and account settings.</p>
+        </div>
+    </div>
+
+    <div class="profile-card">
+        <div class="profile-header-wrap">
+            <div class="profile-avatar-box" id="avatar-preview">
+                🏪
+            </div>
+            <div>
+                <h2 class="profile-meta-title" id="display-store-name">Store Name</h2>
+                <div class="profile-meta-subtitle">
+                    <span class="badge-verified">✓ Active Merchant</span>
+                    <span>Autonomous AI Recovery Enabled</span>
+                </div>
+            </div>
+        </div>
+
+        <form id="merchant-profile-form">
+            <div class="form-group">
+                <label for="store_name">Store Brand Name</label>
+                <input type="text" id="store_name" class="form-control" placeholder="e.g. Acme Innovations">
+                <div class="hint">Appears in customer checkout headers, emails, and SMS alerts.</div>
+            </div>
+
+            <div class="grid-2col">
+                <div class="form-group">
+                    <label for="contact_email">Business Email</label>
+                    <input type="email" id="contact_email" class="form-control" placeholder="merchant@yourdomain.com">
+                    <div class="hint">Primary administrative and notification email.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Support Phone</label>
+                    <input type="text" id="phone" class="form-control" placeholder="+91 9876543210">
+                    <div class="hint">Customer service and recovery contact line.</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="logo_url">Store Logo URL</label>
+                <input type="text" id="logo_url" class="form-control" placeholder="https://example.com/logo.png" oninput="updateLogoPreview(this.value)">
+                <div class="hint">Direct image link (PNG, JPG, SVG) displayed on checkout sessions.</div>
+            </div>
+
+            <div class="actions-bar">
+                <div id="profile-msg" style="font-size: 14px; font-weight: 600;"></div>
+                <button type="submit" class="primary-save-btn">Save Profile Changes</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="quick-links-card">
+        <div>
+            <strong style="font-size: 14px; color: #111827; display: block;">Storefront & Integrations</strong>
+            <span style="font-size: 12px; color: #6b7280;">Quick access to preview your live store and recovery dashboard.</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <a href="/" target="_blank" rel="noopener" class="quick-link-btn">🛍️ View Storefront</a>
+            <a href="/merchant/settings" class="quick-link-btn">⚙️ AI Guardrails</a>
+            <a href="/merchant/settings#coupons" class="quick-link-btn">🏷️ Coupons</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateLogoPreview(url) {
+        const preview = document.getElementById("avatar-preview");
+        if (url && url.trim().length > 0) {
+            preview.innerHTML = `<img src="${url.trim()}" alt="Store Logo" onerror="this.onerror=null; this.parentElement.innerHTML='🏪';">`;
+        } else {
+            const storeName = document.getElementById("store_name").value.trim();
+            preview.innerHTML = storeName ? storeName.charAt(0).toUpperCase() : '🏪';
+        }
+    }
+
+    async function loadProfile() {
+        try {
+            const res = await fetch("/api/merchant/profile");
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById("store_name").value = data.store_name || "";
+                document.getElementById("contact_email").value = data.contact_email || "";
+                document.getElementById("phone").value = data.phone || "";
+                document.getElementById("logo_url").value = data.logo_url || "";
+                
+                document.getElementById("display-store-name").textContent = data.store_name || "My Store";
+                updateLogoPreview(data.logo_url);
+            }
+        } catch(e) {
+            console.error("Failed to load profile", e);
+        }
+    }
+    
+    document.getElementById("merchant-profile-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const storeNameVal = document.getElementById("store_name").value;
+        const payload = {
+            store_name: storeNameVal,
+            contact_email: document.getElementById("contact_email").value,
+            phone: document.getElementById("phone").value,
+            logo_url: document.getElementById("logo_url").value,
+        };
+
+        const btn = document.querySelector("#merchant-profile-form button[type='submit']");
+        const msg = document.getElementById("profile-msg");
+        btn.disabled = true;
+        btn.textContent = "Saving...";
+        msg.textContent = "";
+
+        try {
+            const res = await fetch("/api/merchant/profile", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                msg.textContent = "✅ Profile updated successfully!";
+                msg.style.color = "#16a34a";
+                document.getElementById("display-store-name").textContent = storeNameVal || "My Store";
+                updateLogoPreview(payload.logo_url);
+                setTimeout(() => { msg.textContent = ""; }, 4000);
+            } else {
+                const err = await res.json();
+                msg.textContent = "❌ " + (err.detail || "Failed to save profile.");
+                msg.style.color = "#dc2626";
+            }
+        } catch(err) {
+            msg.textContent = "❌ Network error saving profile.";
+            msg.style.color = "#dc2626";
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Save Profile Changes";
+        }
+    });
+
+    document.getElementById("store_name").addEventListener("input", (e) => {
+        const logoUrl = document.getElementById("logo_url").value;
+        if (!logoUrl) {
+            updateLogoPreview("");
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", loadProfile);
+</script>
+{% endblock %}

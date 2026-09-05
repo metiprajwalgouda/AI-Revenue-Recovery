@@ -1,0 +1,57 @@
+<!DOCTYPE html> <html> <head> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Complete your purchase</title> </head> <body style="margin:0; padding:0; background-color:#f4f4f7; font-family:Arial, Helvetica, sans-serif;">   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7; padding:24px 0;">     <tr>       <td align="center">         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);">            <!-- Header -->           <tr>             <td style="background-color:#111111; padding:24px 32px;">               <span style="color:#ffffff; font-size:20px; font-weight:bold; letter-spacing:0.5px;">{{ store_name }}</span>             </td>           </tr>            <!-- Greeting -->
+          <tr>
+            <td style="padding:32px 32px 8px 32px;">
+              <h1 style="margin:0 0 8px 0; font-size:22px; color:#111111;">Hi {{ customer_name }},</h1>
+              <p style="margin:0; font-size:15px; color:#555555; line-height:1.5;">
+                {% if message %}
+                  {{ message }}
+                {% else %}
+                  You left some great items in your cart. They're still waiting for you —
+                  complete your purchase before they're gone.
+                {% endif %}
+              </p>
+            </td>
+          </tr>
+
+          {% if cart_items %}
+          <!-- Cart items -->
+          <tr>
+            <td style="padding:16px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                {% for item in cart_items %}
+                <tr>
+                  <td style="padding:12px 0; border-bottom:1px solid #eeeeee; font-size:14px; color:#333333;">
+                    {{ item.get('name', 'Item') }} <span style="color:#999999;">× {{ item.get('quantity', 1) }}</span>
+                  </td>
+                  <td style="padding:12px 0; border-bottom:1px solid #eeeeee; font-size:14px; color:#333333; text-align:right;">
+                    ₹{{ "%.2f"|format(item.get('price', 0) * item.get('quantity', 1)) }}
+                  </td>
+                </tr>
+                {% endfor %}
+
+                <tr>
+                  <td style="padding:12px 0; font-size:14px; color:#555555;">Subtotal</td>
+                  <td style="padding:12px 0; font-size:14px; color:#555555; text-align:right;">₹{{ "%.2f"|format(subtotal) }}</td>
+                </tr>
+
+                {% if discount_amount and discount_amount > 0 %}
+                <tr>
+                  <td style="padding:4px 0; font-size:14px; color:#0a8a3d;">
+                    Discount{% if coupon_code %} ({{ coupon_code }}){% endif %}
+                  </td>
+                  <td style="padding:4px 0; font-size:14px; color:#0a8a3d; text-align:right;">
+                    -₹{{ "%.2f"|format(discount_amount) }}
+                  </td>
+                </tr>
+                {% endif %}
+
+                <tr>
+                  <td style="padding:14px 0 0 0; font-size:16px; font-weight:bold; color:#111111; border-top:2px solid #111111;">Total</td>
+                  <td style="padding:14px 0 0 0; font-size:16px; font-weight:bold; color:#111111; text-align:right; border-top:2px solid #111111;">
+                    ₹{{ "%.2f"|format(total) }}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          {% endif %}            {% if coupon_code %}           <!-- Coupon highlight -->           <tr>             <td style="padding:8px 32px 0 32px;">               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fff8e6; border:1px dashed #e0b400; border-radius:6px;">                 <tr>                   <td style="padding:14px 16px; text-align:center;">                     <span style="font-size:14px; color:#7a5c00;">Use code </span>                     <span style="font-size:16px; font-weight:bold; color:#7a5c00; letter-spacing:1px;">{{ coupon_code }}</span>                     <span style="font-size:14px; color:#7a5c00;"> — apply this code at checkout to redeem your discount</span>                   </td>                 </tr>               </table>             </td>           </tr>           {% endif %}            <!-- CTA button -->           <tr>             <td style="padding:28px 32px 8px 32px;" align="center">               <a href="{{ resume_url }}" target="_blank"                  style="display:inline-block; background-color:#111111; color:#ffffff; text-decoration:none;                         font-size:15px; font-weight:bold; padding:14px 32px; border-radius:6px;">                 Complete Your Purchase               </a>             </td>           </tr>            <tr>             <td style="padding:8px 32px 32px 32px;" align="center">               <p style="margin:0; font-size:12px; color:#999999;">                 Or copy this link into your browser:<br>                 <span style="color:#555555;">{{ resume_url }}</span>               </p>             </td>           </tr>            <!-- Footer -->           <tr>             <td style="background-color:#fafafa; padding:20px 32px; border-top:1px solid #eeeeee;">               <p style="margin:0; font-size:12px; color:#aaaaaa; line-height:1.6;">                 You're receiving this because you started a checkout at {{ store_name }}.                 If you'd rather not receive these emails, you can opt out from your account settings.               </p>             </td>           </tr>          </table>       </td>     </tr>   </table> </body> </html>

@@ -23,12 +23,26 @@ from app.auth import (
 router = APIRouter(prefix="/api/customer", tags=["customer-auth"])
 
 
+import re
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+
 class CustomerSignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=200)
     name: Optional[str] = None
     phone: Optional[str] = None
 
+    @field_validator('phone', mode='after')
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        v = re.sub(r'[\s\-\(\)]', '', v)
+        if not v.startswith('+'):
+            v = '+91' + v
+        if not re.match(r'^\+91\d{10}$', v):
+            raise ValueError('Phone number must be exactly 10 digits')
+        return v
 
 class CustomerLoginRequest(BaseModel):
     email: EmailStr
@@ -54,6 +68,11 @@ def _set_customer_cookie(response: Response, customer_id: int) -> None:
         samesite="lax",
     )
 
+@router.post("/logout")
+def logout_customer(response: Response):
+    response.delete_cookie(CUSTOMER_COOKIE_NAME)
+    return {"message": "Logged out successfully"}
+
 
 def get_current_customer(request: Request, db: Session = Depends(get_db)) -> CustomerUser:
     """FastAPI dependency: resolves the logged-in customer from the session cookie,
@@ -71,6 +90,19 @@ def get_current_customer(request: Request, db: Session = Depends(get_db)) -> Cus
         raise HTTPException(status_code=401, detail="Account not found or inactive")
 
     return customer
+
+
+def get_current_customer_or_none(request: Request, db: Session = Depends(get_db)) -> Optional[CustomerUser]:
+    """Resolves the logged-in customer if cookie is valid, or returns None without throwing."""
+    token = request.cookies.get(CUSTOMER_COOKIE_NAME)
+    if not token:
+        return None
+
+    customer_id = decode_customer_session_token(token)
+    if customer_id is None:
+        return None
+
+    return db.query(CustomerUser).filter(CustomerUser.id == customer_id, CustomerUser.is_active == True).first()
 
 
 @router.post("/signup", response_model=CustomerOut)
